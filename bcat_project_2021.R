@@ -507,6 +507,74 @@ colnames(rep_bcat)<-c("chr","Start","End","Name","Score")
 
 bcat_allpeaks<-bcat_allpeaks[!(bcat_allpeaks$Name %in% rep_bcat$Name),]
 
+## Annotate selection of peaks >2 reps (one of them RD)
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+library(org.Hs.eg.db)
+txdb_human <- TxDb.Hsapiens.UCSC.hg38.knownGene
+
+annot_bcat_allpeaks<-as.data.frame(bcat_allpeaks[,5:ncol(bcat_allpeaks)])
+annot_bcat_allpeaks<-makeGRangesFromDataFrame(annot_bcat_allpeaks)
+annot_bcat_allpeaks<-annotatePeak(annot_bcat_allpeaks,tssRegion = c(-3000, 3000), TxDb=txdb_human, annoDb="org.Hs.eg.db")
+
+annostat_min2rep<-annot_bcat_allpeaks@annoStat
+annostat_min2rep$group<-"peaks >=2 replicates"
+
+ggplot(annostat_min2rep,aes(x=group,y=Frequency,fill=Feature))+
+  geom_bar(stat="identity",color="black") +
+  scale_fill_brewer(palette="Paired")+
+  theme_light()+
+  theme(axis.text.x = element_text(angle=45,vjust=1,hjust=1,size=12),
+        axis.text.y = element_text(size=12),
+        axis.title.y = element_text(size=14,face = "bold"))+
+  xlab("")+ylab("Percentage of peaks (%)")+
+  coord_flip()
+
+## functional renrichment enrichr output web genes min 2 reps
+bp_genes_min2rep<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/ChIPs_bcat_peaks_selection/BP_function_enrichment_peaks_min_2reps.txt',header = TRUE)
+bpsub<-subset(bp_genes_min2rep,bp_genes_min2rep$Adjusted.P.value<=0.05)
+bpsub<- bpsub[order(bpsub$P.value),]
+
+bpsub$Term<-as.factor(bpsub$Term)
+bpsub$Term <- factor(bpsub$Term, levels=(bpsub$Term)[rev(order(bpsub$Adjusted.P.value))])
+
+library(tidyr)
+#For wiki pathways
+bpsub<-separate(data = bpsub, col = Overlap, into = c("counts", "pathway"), sep = "/")
+bpsub<-separate(data = bpsub, col = Term, into = c("Term", "GO"), sep = "GO")
+bpsub$GO<-gsub(':','',bpsub$GO)
+bpsub$GO<-gsub(')','',bpsub$GO)
+bpsub$Term<-gsub(' \\(','',bpsub$Term)
+
+bpsub$Term <-reorder(bpsub$Term, rev(bpsub$P.value))
+bpsub$Term <- factor(bpsub$Term, levels=bpsub[rev(order(bpsub$Adjusted.P.value)), ]$Term)
+
+ggplot(bpsub[1:20,],aes(y=-log10(P.value),x=Term),alpha = 0.5)+
+  geom_bar(position="dodge",stat = "identity",aes(fill=Combined.Score))+
+  #facet_wrap(~group,scales="free")+
+  theme_minimal()+
+  coord_flip()+
+  theme(axis.title=element_text(size=14,face="bold"),
+        axis.text.x = element_text(size=8, face="bold",hjust = 1),
+        axis.text.y = element_text(size=12, hjust = 1),
+        legend.position = "bottom")+
+  ggtitle("Top 20 Biological Processes")
+
+ggplot(bpsub[1:20,], aes(x = Term, y = -log10(P.value))) +
+  geom_segment(aes(x = Term, xend = Term, y = 0, yend = -log10(P.value)), 
+    color = "lightblue",size=3) + 
+  geom_point(color="darkblue", aes(size = Combined.Score))+
+  theme_void() +
+  coord_flip()+
+  theme(axis.title=element_text(size=10,face="bold"),
+        axis.text.x = element_text(size=10, face="bold",hjust = 1),
+        axis.text.y = element_text(size=14, hjust = 1),
+        legend.position = "bottom")+
+  ggtitle("Top 20 Enriched Biological Processes")
+
+
+## merge with OLD CHRISTOS GEKAS diff expression analysis
+
 rpmi_al<-merge(bcat_allpeaks[!duplicated(bcat_allpeaks$ensembl_gene_id),],res_df_rna_rpmi,by.x="ensembl_gene_id",by.y="id",all=TRUE)
 rpmi_al<-merge(rpmi_al,est_mod,by.x="ensembl_gene_id",by.y="Gene",all=TRUE)
 rpmi_al<-merge(rpmi_al,corout,by.x="ensembl_gene_id",by.y="Gene",all=TRUE)
@@ -620,6 +688,12 @@ ssGSEA$Description<-'NA'
 ssGSEA<-ssGSEA[,c(1,ncol(ssGSEA),2:(ncol(ssGSEA)-1))]
 dim(ssGSEA)
 write.table(ssGSEA,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ggsea_bcatexp_allgenes_incTLE.gct",sep="\t",row.names=FALSE,quote = FALSE)
+
+#only b-cat targets, from clusters unsupervised microarrays all b-cat targets
+ssGSEA_bcat<-ssGSEA[ssGSEA$NAME %in% clusters$Gene,]
+write.table(ssGSEA_bcat,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/ggsea_bcatexp_targets.gct",sep="\t",row.names=FALSE,quote = FALSE)
+
+
 
 # All Samples
 # excluding genes with no conditions
@@ -1155,6 +1229,7 @@ countab$group<-ifelse(countab$First_event=="Progression" | countab$First_event==
                       "Relapse","Remission")
 
 ## Differentially expressed genes relapse vs remission
+write.table(target_prog_degs,"/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/TARGET/supervised/DEGs_rem_relapse_TARGET.tsv",sep="\t",quote = FALSE,row.names = FALSE)
 
 target_prog_degs_sig<-(subset(target_prog_degs,target_prog_degs$pvalue<0.05))
 row.names(target_prog_degs_sig)<-target_prog_degs_sig$Row.names
@@ -1435,7 +1510,10 @@ write.table(clusters,"/Users/yguillen/Downloads/clusters_TARGET_bcatpeaks.txt",s
 # clust1_microarray from script T_ALL_GEOquery.R includes all genes in cluster1 separating patients 145 vs 2367
 
 # targdeg are b-cat targets differentially expressed between 145 and 2367 (deg_clust_GSE14618)
-deg_bcat_prog<-unique(deg_clust_GSE14618[deg_clust_GSE14618$external_gene_name %in% targdeg,]$ensembl_gene_id)
+#deg_bcat_prog<-unique(deg_clust_GSE14618[deg_clust_GSE14618$external_gene_name %in% targdeg,]$ensembl_gene_id)
+unique(comp_all_tot$ensembl_gene_id)
+
+
 
 # corout_brca matrix with p and R for brca1
 corout_brca[corout_brca$Pval<0.05,]$Gene
@@ -1447,20 +1525,25 @@ corout_kai[corout_kai$Pval<0.01 & abs(corout_kai$Rho)>0.2,]$Gene
 kaibrcacor<-unique(c(corout_brca[corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,]$Gene,
                      corout_kai[corout_kai$Pval<0.01 & abs(corout_kai$Rho)>0.2,]$Gene))
 
-myBreaks <- c(seq(min(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% deg_bcat_prog]))), -2.5, length.out=round(ceiling(paletteLength*0.10))),
+myBreaks <- c(seq(min(t(scale(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",colnames(bcatexp_survival) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))), -2.5, length.out=round(ceiling(paletteLength*0.10))),
               seq(-2.6,2.5,length.out = round(ceiling(paletteLength*0.80))),
-              seq(2.6, max(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% deg_bcat_prog]))), length.out=round(floor(paletteLength*0.10)))) 
+              seq(2.6, max(t(scale(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",colnames(bcatexp_survival) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))), length.out=round(floor(paletteLength*0.10)))) 
 
-row.names(corout_brca)<-corout_brca$Gene
+#row.names(corout_brca)<-corout_brca$Gene
 
-phetsel<-pheatmap(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% deg_bcat_prog]))),
-                  annotation_col = as.data.frame(bcatexp_survival[,c(1,5,7,8,10:12,14,17,19,(ncol(bcatexp_survival)-3):ncol(bcatexp_survival))]),
+colgenes<-comp_all_tot[comp_all_tot$ensembl_gene_id %in% colnames(bcatexp_survival),]
+colgenes<-colgenes[!duplicated(colgenes$ensembl_gene_id),]
+row.names(colgenes)<-colgenes$ensembl_gene_id
+
+phetsel<-pheatmap(as.data.frame(t(scale(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",colnames(bcatexp_survival) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))),
+                  annotation_col = as.data.frame(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",c(1,5,7,8,10:12,14,17,19,(ncol(bcatexp_survival)-3):ncol(bcatexp_survival))]),
                   #         annotation_row = corout_brca[corout_brca$Gene %in% colnames(bcatexp_survival) & corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,][,3:4],
+                  annotation_row = colgenes[colgenes$comp=="Rem_indfail",c(14,16)],
                   show_colnames=F,
                   show_rownames = F,
                   fontsize = 6,
-                  cutree_cols =8,
-                  cutree_rows = 6,
+                  cutree_cols =6,
+                  cutree_rows = 3,
                   color=cols, breaks=myBreaks)
 
 
@@ -1485,7 +1568,7 @@ phetsel<-pheatmap(as.data.frame(t(scale(deg_micro))),
 
 
 clusters<-data.frame(cluster=sort(cutree(phetsel$tree_row, k=6)))
-patients<-data.frame(cluster=sort(cutree(phetsel$tree_col, k=8)))
+patients<-data.frame(cluster=sort(cutree(phetsel$tree_col, k=6)))
 
 clusters$Gene<-row.names(clusters)
 clusters<-merge(clusters,geneid,by='Gene',all.x=T)
@@ -1497,8 +1580,8 @@ clusters[clusters$cluster==2,]$NAME
 # Order genes (clusters)
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(deg_micro)))[phetsel$tree_row[["order"]],]))
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% clusters[clusters$cluster==6 | clusters$cluster==3,]$Gene])))[phetsel$tree_row[["order"]],]))
-#geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% deg_bcat_prog])))[phetsel$tree_row[["order"]],]))
-geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% corout_brca[corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,]$Gene])))[phetsel$tree_row[["order"]],]))
+geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",colnames(bcatexp_survival) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail,"]$ensembl_gene_id)])))[phetsel$tree_row[["order"]],]))
+#geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% corout_brca[corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,]$Gene])))[phetsel$tree_row[["order"]],]))
 geneorder$order<-row.names(geneorder)
 row.names(geneorder)<-geneorder$Gene
 
@@ -1508,8 +1591,8 @@ clusters$order<-as.numeric(clusters$order)
 # Order patients (patients)
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(deg_micro)))[,phetsel$tree_col[["order"]]]))
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% clusters[clusters$cluster==6 | clusters$cluster==3,]$Gene])))[,phetsel$tree_col[["order"]]]))
-#patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% deg_bcat_prog])))[,phetsel$tree_col[["order"]]]))
-patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% corout_brca[corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,]$Gene])))[,phetsel$tree_col[["order"]]]))
+patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(bcatexp_survival[bcatexp_survival$First_event!="Second Malignant Neoplasm",colnames(bcatexp_survival) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail,"]$ensembl_gene_id)])))[,phetsel$tree_col[["order"]]]))
+#patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(bcatexp_survival[,colnames(bcatexp_survival) %in% corout_brca[corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,]$Gene])))[,phetsel$tree_col[["order"]]]))
 patientorder$order<-row.names(patientorder)
 row.names(patientorder)<-patientorder$Sample
 patientorder$Sample<-NULL
@@ -1552,14 +1635,14 @@ bcatexp_survival_cluster$Vital_status<-as.integer(bcatexp_survival_cluster$Vital
 # Create variable group of clusters
 bcatexp_survival_cluster$newcluster<-NA
 bcatexp_survival_cluster<-bcatexp_survival_cluster %>% 
-  mutate(newcluster = case_when(cluster == 1 ~ 13658,
-                                cluster == 2 ~ 247,
-                                cluster == 3 ~ 13658,
-                                cluster == 4 ~ 247,
-                                cluster == 5 ~ 13658,
-                                cluster == 6 ~ 13658,
-                                cluster == 7 ~ 247,
-                                cluster == 8 ~ 13658
+  mutate(newcluster = case_when(cluster == 1 ~ 1,
+                                cluster == 2 ~ 256,
+                                cluster == 3 ~ 3,
+                                cluster == 4 ~ 4,
+                                cluster == 5 ~ 256,
+                                cluster == 6 ~ 256
+              #                  cluster == 7 ~ 247,
+              #                  cluster == 8 ~ 13658
                                 #                                cluster == 9 ~ 49731112,
                                 #                                cluster == 10 ~ 2810,
                                 #                                cluster == 11 ~ 49731112,
@@ -1567,9 +1650,9 @@ bcatexp_survival_cluster<-bcatexp_survival_cluster %>%
   ))
 
 
-surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days, disease_free) ~ newcluster, data=bcatexp_survival_cluster)
+#surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days, disease_free) ~ newcluster, data=bcatexp_survival_cluster)
 
-surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days, disease_free) ~ newcluster, data=bcatexp_survival_cluster[bcatexp_survival_cluster$First_event!="Second Malignant Neoplasm",])
+surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days/365, disease_free) ~ newcluster, data=bcatexp_survival_cluster[bcatexp_survival_cluster$First_event!="Second Malignant Neoplasm",])
 
 ggsurvplot(surv_C_fit_TALL, pval = TRUE,
            font.x = c(20),
@@ -1750,6 +1833,7 @@ patients$order<-as.numeric(patients$order)
 
 
 
+
 ## survival curves
 
 bcatexp_survival_cluster<-merge(patients,bcat_matrix,by=0)
@@ -1787,6 +1871,8 @@ surv_C_fit_TALL$time
 myBreaks <- c(seq(min(t(scale(bcat_matrix[,colnames(bcat_matrix) %in% clusters[clusters$cluster==4 | clusters$cluster==3 | clusters$cluster==1,]$Gene]))), -2.5, length.out=round(ceiling(paletteLength*0.10))),
               seq(-2.6,2.5,length.out = round(ceiling(paletteLength*0.80))),
               seq(2.6, max(t(scale(bcat_matrix[,colnames(bcat_matrix) %in% clusters[clusters$cluster==4 | clusters$cluster==3 | clusters$cluster==1,]$Gene]))), length.out=round(floor(paletteLength*0.10)))) 
+
+# annotate genes from microarrays unsupervised T_ALL_GEOquary.R --> colgene
 
 
 phetsel<-pheatmap(as.data.frame(t(scale(bcat_matrix[,colnames(bcat_matrix) %in% clusters[clusters$cluster==4 | clusters$cluster==3 | clusters$cluster==1,]$Gene]))),
@@ -1856,16 +1942,26 @@ matnonzero <- bcatexp[bcatexp$GSEA=="EGA_R" | bcatexp$GSEA=="EGA_TLE",22:ncol(bc
 
 matnonzero<-cbind(bcatexp[bcatexp$GSEA=="EGA_R" | bcatexp$GSEA=="EGA_TLE",1:21],matnonzero)
 
-myBreaks1 <- c(seq(min(t(scale(matnonzero[row.names(matnonzero)!="Thymus",22:ncol(matnonzero)]))), 0, length.out=round(ceiling(paletteLength*0.40)) + 1),
+matnonzero<-matnonzero[row.names(matnonzero)!="Thymus" & row.names(matnonzero)!="R3",]
+
+matnonzero<-subset(matnonzero,matnonzero$First_event!="Secondary leukemia" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Death")
+
+
+myBreaks1 <- c(seq(min(t(scale(matnonzero[,22:ncol(matnonzero)]))), 0, length.out=round(ceiling(paletteLength*0.40)) + 1),
                seq(0.1,2,length.out = round(ceiling(paletteLength*0.40))),
-               seq(2.1, max(t(scale(matnonzero[row.names(matnonzero)!="Thymus",22:ncol(matnonzero)]))), length.out=round(floor(paletteLength*0.20)-1))) 
+               seq(2.1, max(t(scale(matnonzero[,22:ncol(matnonzero)]))), length.out=round(floor(paletteLength*0.20)-1))) 
 
+# annotate genes from unsupervised groups microarrays G1, G2, G3
+clusters_micro_uns_ensembl<-merge(geneid,clusters_micro_uns,by.x="NAME",by.y="Gene",all.y=TRUE)
 
+colgene_ega<-merge(as.data.frame(t(scale(matnonzero[,22:ncol(matnonzero)]))),clusters_micro_uns_ensembl,by.x=0,by.y="Gene",all.x=TRUE)
+row.names(colgene_ega)<-colgene_ega$Row.names
+colgene_ega$Row.names<-NULL
 
-
-phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus",22:ncol(matnonzero)]))),
-                annotation_col = as.data.frame(matnonzero[row.names(matnonzero)!="Thymus",c(5,17)]),
-                #         annotation_row = colcol[row.names(colcol) %in% colnames(matnonzero[,21:ncol(matnonzero)]),c(3,6,8,7,9)],
+phet1<-pheatmap(as.data.frame(t(scale(matnonzero[,22:ncol(matnonzero)]))),
+                annotation_col = as.data.frame(matnonzero[,c(14,17,19,21)]),
+                annotation_row = data.frame(row.names=row.names(colgene_ega),
+                                            cluster=paste("cluster",as.factor(colgene_ega[,(ncol(colgene_ega))]))),
                 show_colnames=T,
                 show_rownames = F,
                 fontsize = 6,
@@ -1875,27 +1971,38 @@ phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus"
                 breaks = myBreaks1)
 
 
-myBreaks1 <- c(seq(min(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% deg_bcattarg]))), 0, length.out=round(ceiling(paletteLength*0.40)) + 1),
+myBreaks1 <- c(seq(min(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))), 0, length.out=round(ceiling(paletteLength*0.40)) + 1),
                seq(0.1,2,length.out = round(ceiling(paletteLength*0.40))),
-               seq(2.1, max(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% deg_bcattarg]))), length.out=round(floor(paletteLength*0.20)-1))) 
+               seq(2.1, max(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))), length.out=round(floor(paletteLength*0.20)-1))) 
 
 
 matnonzero$Age_Dx_days<-(as.numeric(matnonzero$Age_Dx_days))/365
 colnames(matnonzero)[21]<-"Age_Dx"
 
-phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% deg_bcattarg]))),
-                annotation_col = as.data.frame(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",c(14,17,19,21)]),
+phet1<-pheatmap(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))),
+                annotation_col = as.data.frame(matnonzero[,c(14,17,19,21)]),
                 #                annotation_row = colcol[row.names(colcol) %in% colnames(matnonzero[,colnames(matnonzero) %in% deg_bcattarg]),c(6,16)],
                 show_colnames=F,
-                show_rownames = T,
+                show_rownames = F,
+                fontsize = 6,
+                cutree_cols = 2,
+                cutree_rows = 4,
+                color=cols,
+                breaks = myBreaks1)
+
+phet1<-pheatmap(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% colnames(bcatexp[,22:ncol(bcatexp)])]))),
+                annotation_col = as.data.frame(matnonzero[,c(14,17,19,21)]),
+                annotation_row = colcol[row.names(colcol) %in% colnames(matnonzero[,colnames(matnonzero) %in% deg_bcattarg]),c(6,16)],
+                show_colnames=F,
+                show_rownames = F,
                 fontsize = 6,
                 cutree_cols = 3,
                 cutree_rows = 4,
                 color=cols,
                 breaks = myBreaks1)
 
-phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% colnames(bcatexp[,22:ncol(bcatexp)])]))),
-                annotation_col = as.data.frame(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",c(14,17,19,21)]),
+phet1<-pheatmap(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% geneid[geneid$NAME %in% targdeg,]$Gene]))),
+                annotation_col = as.data.frame(matnonzero[,c(14,17,19,21)]),
                 #                annotation_row = colcol[row.names(colcol) %in% colnames(matnonzero[,colnames(matnonzero) %in% deg_bcattarg]),c(6,16)],
                 show_colnames=F,
                 show_rownames = F,
@@ -1905,19 +2012,24 @@ phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus"
                 color=cols,
                 breaks = myBreaks1)
 
-phet1<-pheatmap(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% geneid[geneid$NAME %in% targdeg,]$Gene]))),
-                annotation_col = as.data.frame(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",c(14,17,19,21)]),
-                #                annotation_row = colcol[row.names(colcol) %in% colnames(matnonzero[,colnames(matnonzero) %in% deg_bcattarg]),c(6,16)],
-                show_colnames=F,
+colnames(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)])
+colgenesmat<-comp_all_tot[comp_all_tot$ensembl_gene_id %in% colnames(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]),]
+colgenesmat<-colgenesmat[!duplicated(colgenesmat$ensembl_gene_id),]
+row.names(colgenesmat)<-colgenesmat$ensembl_gene_id
+
+phet1<-pheatmap(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)]))),
+                annotation_col = as.data.frame(matnonzero[,c(5,8,14,17,19,21)]),
+                annotation_row = colgenesmat[,c(14,16)],
+                show_colnames=T,
                 show_rownames = F,
                 fontsize = 6,
                 cutree_cols = 3,
-                cutree_rows = 4,
+                cutree_rows = 3,
                 color=cols,
                 breaks = myBreaks1)
 
 
-clusters1<-data.frame(cluster=sort(cutree(phet1$tree_row, k=4))) 
+clusters1<-data.frame(cluster=sort(cutree(phet1$tree_row, k=3))) 
 patients1<-data.frame(cluster=sort(cutree(phet1$tree_col, k=3)))
 
 
@@ -1931,7 +2043,8 @@ clusters1[clusters1$cluster==1,]$Gene
 # Order genes (clusters)
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% deg_bcattarg])))[phet1$tree_row[["order"]],]))
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% deg_bcattarg])))[phet1$tree_row[["order"]],]))
-geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA"  & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% colnames(bcatexp[,22:ncol(bcatexp)])])))[phet1$tree_row[["order"]],]))
+geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(matnonzero[,22:ncol(matnonzero)])))[phet1$tree_row[["order"]],]))
+#geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)])))[phet1$tree_row[["order"]],]))
 geneorder$order<-row.names(geneorder)
 row.names(geneorder)<-geneorder$Gene
 
@@ -1943,7 +2056,8 @@ clusters1<-merge(clusters1,geneid,by="Gene",all.x=TRUE)
 # Order patients (patients)
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% deg_bcattarg])))[,phet1$tree_col[["order"]]]))
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% deg_bcattarg])))[,phet1$tree_col[["order"]]]))
-patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(matnonzero[row.names(matnonzero)!="Thymus" & matnonzero$First_event!="NA" & matnonzero$First_event!="Disease" & matnonzero$First_event!="Secondary leukemia",colnames(matnonzero) %in% colnames(bcatexp[,22:ncol(bcatexp)])])))[,phet1$tree_col[["order"]]]))
+#patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(matnonzero[,colnames(matnonzero) %in% unique(comp_all_tot[comp_all_tot$comp=="Rem_indfail",]$ensembl_gene_id)])))[,phet1$tree_col[["order"]]]))
+patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(matnonzero[,22:ncol(matnonzero)])))[,phet1$tree_col[["order"]]]))
 patientorder$order<-row.names(patientorder)
 row.names(patientorder)<-patientorder$Sample
 patientorder$Sample<-NULL
@@ -1984,11 +2098,11 @@ row.names(patinfo1)<-patinfo1$Row.names
 patinfo1<-merge(patinfo1,tf_expTLE,by="row.names")
 patinfo1<-patinfo1[,-2]
 
-patinfo1$outcome_group<-ifelse(patinfo1$First_event=="Progression" | patinfo1$First_event=="Death" | patinfo1$First_event=="Relapse",
-                               "Relapse","Remission")
+#patinfo1$outcome_group<-ifelse(patinfo1$First_event=="Progression" | patinfo1$First_event=="Death" | patinfo1$First_event=="Relapse",
+#                               "Relapse","Remission")
 
-
-ggplot(patinfo1,aes(x=reorder(as.factor(cluster), bcat, FUN = median),y=scale(tcf_exp_EGA)))+
+patinfo1$cluster<- factor(patinfo1$cluster, levels=c("2","1","3"))
+ggplot(patinfo1,aes(x=reorder(as.factor(cluster), bcat_exp_EGA, FUN = median),y=bcat_exp_EGA))+
   geom_point(aes(color=First_event),size=5)+
   geom_boxplot(alpha=0.2,lwd=1)+
   #  scale_color_manual(values=c("chartreuse3","hotpink","deepskyblue"))+
@@ -2010,14 +2124,15 @@ patinfo1$kaiso_scale<-as.numeric(scale(patinfo1$kaiso_exp_EGA))
 patinfo1$tcf_scale<-as.numeric(scale(patinfo1$tcf_exp_EGA))
 patinfo1$lef_scale<-as.numeric(scale(patinfo1$lef_exp_EGA))
 
-wilcox.test(patinfo1[patinfo1$cluster!=3,]$lef_exp_EGA~as.factor(patinfo1[patinfo1$cluster!=3,]$cluster))
+wilcox.test(patinfo1$bcat_exp_EGA~as.factor(patinfo1$cluster))
 
-kruskal.test(patinfo1$lef_exp_EGA~patinfo1$outcome_group)
+kruskal.test(patinfo1$bcat_exp_EGA~as.factor(patinfo1$cluster))
 
-patinfo1_melt<-subset(patinfo1,select=c("Row.names","First_event","cluster","outcome_group","bcat_scale","kaiso_scale","tcf_scale","lef_scale"))
-patinfo1_melt<-melt(patinfo1_melt,id.vars=c("Row.names","First_event","cluster","outcome_group"))
+patinfo1_melt<-subset(patinfo1,select=c("Row.names","First_event","cluster","bcat_scale","kaiso_scale","tcf_scale","lef_scale"))
+patinfo1_melt<-melt(patinfo1_melt,id.vars=c("Row.names","First_event","cluster"))
 
-ggplot(patinfo1_melt,aes(x=outcome_group,y=value))+
+class(patinfo1_melt$value)<-as.numeric(patinfo1_melt$value)
+ggplot(patinfo1_melt,aes(x=First_event,y=value))+
   # geom_point(color="black",size=5,alpha=0.5)+
   geom_jitter(aes(color=First_event),size=2,alpha=0.8)+
   geom_boxplot(alpha=0.2)+
@@ -2028,7 +2143,7 @@ ggplot(patinfo1_melt,aes(x=outcome_group,y=value))+
   theme_classic()
 
 
-prop_clust<-data.frame(prop.table(table(patinfo1[patinfo1$First_event!="NA" | patinfo1$First_event!="Disease" | patinfo1$First_event!="Death" | patinfo1$First_event!="Secondary leukemia",]$cluster,patinfo1[patinfo1$First_event!="NA"  | patinfo1$First_event!="Secondary leukemia" | patinfo1$First_event!="Death",]$First_event),1))
+prop_clust<-data.frame(prop.table(table(patinfo1$cluster,patinfo1$First_event),1))
 colnames(prop_clust)<-c("cluster","First_event","Proportion")
 prop_clust$cluster<-as.factor(prop_clust$cluster)
 
@@ -2054,6 +2169,9 @@ ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_gen
 #UP AND DOWN SEPARATE excluding SAP18,HLA-DOA and KRT5
 ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_reduced.gct")
 
+#clusters unsupervised microarrays in all TARGETs
+ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/TALL_bcat.gct")
+
 ssbcat<-as.data.frame(t(ssbcat))
 colnames(ssbcat)<-ssbcat[1,]
 ssbcat<-ssbcat[-c(1,2),]
@@ -2062,30 +2180,103 @@ metadata_ssbcat<-merge(ssbcat,metadata,by=0,all.y=TRUE)
 row.names(metadata_ssbcat)<-metadata_ssbcat$Row.names
 metadata_ssbcat$Row.names<-NULL
 
-metadata_ssbcat$deg_up_relapse<-as.numeric(metadata_ssbcat$deg_up_relapse)
-metadata_ssbcat$deg_down_relapse<-as.numeric(metadata_ssbcat$deg_down_relapse)
+
+metadata_ssbcat<-merge(metadata_ssbcat,bcat_lev,by=0)
+#metadata_ssbcat$deg_up_relapse<-as.numeric(metadata_ssbcat$deg_up_relapse)
+#metadata_ssbcat$deg_down_relapse<-as.numeric(metadata_ssbcat$deg_down_relapse)
+
+metadata_ssbcat$cluster1<-as.numeric(metadata_ssbcat$cluster1)
+metadata_ssbcat$cluster2<-as.numeric(metadata_ssbcat$cluster2)
+metadata_ssbcat$cluster3<-as.numeric(metadata_ssbcat$cluster3)
 
 cohorts<-c("TARGET","EGA_R","EGA_TLE")
+cohorts<-c("TARGET")
 
 metadata_ssbcat<-subset(metadata_ssbcat,(metadata_ssbcat$First_event!="Second Malignant Neoplasm" & 
                                            metadata_ssbcat$First_event!="Secondary leukemia" &
                                            metadata_ssbcat$First_event!="Disease"))
 
-ggplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ],aes(x=deg_up_relapse,y=deg_down_relapse))+
-  geom_point(data=metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),color="black",size=4)+
-  geom_point(data=metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),size=3)+
-  scale_color_brewer(palette="Set2")+
-  geom_density_2d(data=metadata_ssbcat[metadata_ssbcat$First_event!="Remission",],color="darkolivegreen",bins=20)+
-  geom_vline(xintercept = 6500)+
-  geom_hline(yintercept = 4000)+
+
+
+ggplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ],aes(x=cluster1,y=cluster3))+
+  geom_point(data=metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],color="black",size=3)+
+  geom_point(data=metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event),size=2.5)+
+  scale_color_manual(values=c("red","grey","darkolivegreen","green"))+
+#  geom_density_2d(data=metadata_ssbcat[metadata_ssbcat$First_event!="Remission",],color="darkolivegreen",bins=20)+
+  geom_vline(xintercept = 140,linetype="dashed")+
+  geom_vline(xintercept = 100,linetype="dashed")+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=12),
+        text = element_text(size=10),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16))+
+  coord_fixed(ratio=1)
+
+
+
+boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1>130,]$bcat_exp_EGA)
+boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1<130,]$bcat_exp_EGA)
+
+clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
+      data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
+      data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
+
+
+ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_exp_EGA))+
+  geom_jitter(data=clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),size=3)+
+  geom_boxplot(data=clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,],alpha=0.1)+
+  scale_color_manual(values=c("red","grey","darkolivegreen","green"))+
   theme_bw()+
   theme(legend.position="bottom",
         legend.text = element_text(size=9),
         text = element_text(size=10),
         axis.text.x = element_text(angle=45, size=16,hjust=1),
-        axis.title.y = element_text(size=16))+
-  coord_fixed(ratio=1)
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
 
+kruskal.test(clust1_clas$bcat_exp_EGA,clust1_clas$cluster1_lev)
+
+
+library(survminer)
+
+clust1_clas<-clust1_clas %>% mutate(disease_free =  ifelse(First_event == "Remission", 0, 1))
+clust1_clas$disease_free<-as.factor(clust1_clas$disease_free)
+dim(clust1_clas)
+
+clust1_clas$disease_free<-as.integer(clust1_clas$disease_free)
+clust1_clas$Vital_status<-ifelse(clust1_clas$Vital_status=="Alive",0,1)
+clust1_clas$Vital_status<-as.integer(clust1_clas$Vital_status)
+
+
+
+surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days/365, disease_free) ~ cluster1_lev, data=clust1_clas[clust1_clas$First_event!="Second Malignant Neoplasm",])
+
+ggsurvplot(surv_C_fit_TALL, pval = TRUE,
+           font.x = c(20),
+           font.y = c(20))
+#           palette = c("green", "indianred","lightseagreen","purple"))
+
+pairwise_survdiff(Surv(Event_free_surv_days, disease_free) ~ cluster, data=data_boot_cluster)
+
+surv_C_fit_TALL$time
+
+
+
+
+
+ggplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts, ],aes(x=First_event,y=cluster1))+
+  geom_point(data=metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),color="black",size=4)+
+  geom_point(data=metadata_ssbcat[!is.na(metadata_ssbcat$First_event) & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),size=3)+
+  geom_boxplot(data=metadata_ssbcat[!is.na(metadata_ssbcat$First_event) & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],alpha=0.1)+
+  scale_color_brewer(palette="Set2")+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=9),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
 
 #UNIQUE
 ssbcat_unique<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_ALL_unique.gct")
@@ -2121,5 +2312,154 @@ rm(ty2)
 rm(res.pca)
 rm(res.pcaTLE)
 rm(c1)
+
+#####
+
+
+
+##### bootstrapping ####
+# dataset b-cat targets
+#it8<-data_boot
+
+relapses<-bcatexp_survival[bcatexp_survival$First_event=="Relapse" | bcatexp_survival$First_event=="Progression" | bcatexp_survival$First_event=="Death",]
+remission<-bcatexp_survival[bcatexp_survival$First_event=="Remission",][sample(nrow(bcatexp_survival[bcatexp_survival$First_event=="Remission",]),50),]
+
+data_boot<-rbind(relapses,remission)
+
+# with the signature
+phetsel<-pheatmap(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",colnames(data_boot) %in% unique(comp_all_tot$ensembl_gene_id)]))),
+                  annotation_col = as.data.frame(data_boot[data_boot$First_event!="Second Malignant Neoplasm",c(1,5,7,8,14,17,19,(ncol(data_boot)-3):ncol(data_boot))]),
+                  #         annotation_row = corout_brca[corout_brca$Gene %in% colnames(bcatexp_survival) & corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,][,3:4],
+                  annotation_row = colgenes[,c(14,16)],
+                  show_colnames=F,
+                  show_rownames = F,
+                  fontsize = 6,
+                  cutree_cols =3,
+                  cutree_rows = 6,
+                  color=cols, breaks=myBreaks)
+
+# all targets
+phetsel<-pheatmap(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",22:(ncol(data_boot)-4)]))),
+                  annotation_col = as.data.frame(data_boot[data_boot$First_event!="Second Malignant Neoplasm",c(1,5,7,8,14,17,19,(ncol(data_boot)-3):ncol(data_boot))]),
+                  #         annotation_row = corout_brca[corout_brca$Gene %in% colnames(bcatexp_survival) & corout_brca$Pval<0.01 & abs(corout_brca$Rho)>0.2,][,3:4],
+                  annotation_row = colgenes[,c(14,16)],
+                  show_colnames=F,
+                  show_rownames = F,
+                  fontsize = 6,
+                  cutree_cols =2,
+                  cutree_rows = 6,
+                  color=cols, breaks=myBreaks)
+
+clusters<-data.frame(cluster=sort(cutree(phetsel$tree_row, k=6)))
+patients<-data.frame(cluster=sort(cutree(phetsel$tree_col, k=2)))
+
+clusters$Gene<-row.names(clusters)
+clusters<-merge(clusters,geneid,by='Gene',all.x=T)
+
+table(patients$cluster)
+table(clusters$cluster)
+clusters[clusters$cluster==2,]$NAME
+
+# Order genes (clusters)
+# all targets
+geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",22:(ncol(data_boot)-4)])))[phetsel$tree_row[["order"]],]))
+#signature
+geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",colnames(data_boot) %in% unique(comp_all_tot$ensembl_gene_id)])))[phetsel$tree_row[["order"]],]))
+
+geneorder$order<-row.names(geneorder)
+row.names(geneorder)<-geneorder$Gene
+
+clusters<-merge(clusters,geneorder,by="Gene")
+clusters$order<-as.numeric(clusters$order)
+
+# Order patients (patients)
+# all targets
+patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",22:(ncol(data_boot)-4)])))[,phetsel$tree_col[["order"]]]))
+#signature
+patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(data_boot[data_boot$First_event!="Second Malignant Neoplasm",colnames(data_boot) %in% unique(comp_all_tot$ensembl_gene_id)])))[,phetsel$tree_col[["order"]]]))
+
+patientorder$order<-row.names(patientorder)
+row.names(patientorder)<-patientorder$Sample
+patientorder$Sample<-NULL
+
+patients<-merge(patients,patientorder,by="row.names")
+row.names(patients)<-patients$Row.names
+patients$Row.names<-NULL
+patients$order<-as.numeric(patients$order)
+
+
+patinfo<-merge(data_boot,patients,by="row.names")
+
+ggplot(patinfo[patinfo$First_event!="Second Malignant Neoplasm",],aes(x=reorder(as.factor(cluster), bcat, FUN = median),y=scale(bcat)))+
+  geom_point(aes(color=as.factor(First_event)),size=3)+
+  geom_boxplot(alpha=0.2,lwd=1)+
+  geom_hline(yintercept = median(scale(bcatexp_survival$bcat)),color="red",lwd=2)+
+  geom_hline(yintercept = quantile(scale(bcatexp_survival$bcat))[4],color="grey",lwd=2)+
+  geom_hline(yintercept = quantile(scale(bcatexp_survival$bcat))[2],color="grey",lwd=2)+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=14,hjust=1),
+        axis.text.y = element_text(angle=45, size=14,hjust=1))
+
+
+
+## survival curves with all patients, REDO PATIENTS WITH HEATMAP
+
+data_boot_cluster<-merge(patients,data_boot,by=0)
+row.names(data_boot_cluster)<-data_boot_cluster$Row.names
+data_boot_cluster$Row.names<-NULL
+
+
+library(survminer)
+data_boot_cluster$disease_free<-as.integer(data_boot_cluster$disease_free)
+data_boot_cluster$Vital_status<-ifelse(data_boot_cluster$Vital_status=="Alive",0,1)
+data_boot_cluster$Vital_status<-as.integer(data_boot_cluster$Vital_status)
+
+# Create variable group of clusters
+data_boot_cluster$newcluster<-NA
+data_boot_cluster<-data_boot_cluster %>% 
+  mutate(newcluster = case_when(cluster == 1 ~ 12,
+                                cluster == 2 ~ 12,
+                                cluster == 3 ~ 34,
+                                cluster == 4 ~ 34
+  ))
+
+
+surv_C_fit_TALL <- survfit(Surv(Event_free_surv_days/365, disease_free) ~ cluster, data=data_boot_cluster[data_boot_cluster$First_event!="Second Malignant Neoplasm",])
+
+ggsurvplot(surv_C_fit_TALL, pval = TRUE,
+           font.x = c(20),
+           font.y = c(20))
+#           palette = c("green", "indianred","lightseagreen","purple"))
+
+pairwise_survdiff(Surv(Event_free_surv_days, disease_free) ~ cluster, data=data_boot_cluster)
+
+surv_C_fit_TALL$time
+#+Gender.x+Age_Dx+WBC_Dx+MRD_29+CNS_hr
+fit.coxph<- coxph(Surv(Event_free_surv_days/365, disease_free) ~ cluster, 
+                  data = data_boot_cluster,
+                  ties = 'exact')
+summary(fit.coxph)
+ 
+ggforest(fit.coxph)
+
+
+# bootstraping results 10 iterations
+BS_pval<-data.frame(exp=c(rep("all",10),rep("microarrays_signature",10)),
+           pval=c(0.75,0.25,0.97,0.4,0.64,0.76,0.038,0.37,0.53,0.72,0.76,0.80,0.48,0.25,0.16,0.6,0.84,0.74,0.94,0.79))
+
+BS_pval_HR<-data.frame(exp=c(rep("all",10)),
+                    pval=c(0.545,0.013,0.966,0.900,0.895,0.893,0.799,0.848,0.262,0.693),
+                    HR=c(0.77,0.25,1,1.1,1.1,1.1,0.9,1.1,1.7,0.84))
+
+BS_pval_HR<-melt(BS_pval_HR,id.vars="exp")
+
+ggplot(BS_pval_HR,aes(x=value))+
+  geom_density(aes(color=variable),size=2)+
+  scale_color_brewer(palette="Set2")+
+  geom_vline(xintercept = 0.05,linetype="dotted",color="red",size=1)+
+  theme_bw()
 
 #####

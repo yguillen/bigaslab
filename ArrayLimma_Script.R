@@ -7,9 +7,9 @@
 # https://wikibits.ugent.be/index.php/Analyze_your_own_microarray_data_in_R/Bioconductor
 
 
-#BiocManager::install("oligo")
-#BiocManager::install("mogene10sttranscriptcluster.db")
-#BiocManager::install("mogene20sttranscriptcluster.db")
+BiocManager::install("oligo")
+BiocManager::install("mogene10sttranscriptcluster.db")
+BiocManager::install("mogene20sttranscriptcluster.db")
 
 library("oligo")
 library("tidyverse")
@@ -24,11 +24,12 @@ library(reshape2)
 
 head(ls("package:mogene10sttranscriptcluster.db"))
 
-setwd("/Users/yguillen/Desktop/temp/beta_catenin_project/microarrays/FL")
+#setwd("/Volumes/grcmc/YGUILLEN/beta_catenin_project/microarrays/FL")
+setwd("/Volumes/grcmc/YGUILLEN/beta_catenin_project/microarrays/BM")
 
 
 # Read old annotations Christos
-anotchrist<-read.delim('data_ann_Gekas.txt',header = TRUE)
+anotchrist<-read.delim('../FL/data_ann_Gekas.txt',header = TRUE)
 anotchrist$PROBEID<-anotchrist$Row.names
 anotchrist$Row.names<-NULL
 
@@ -41,7 +42,7 @@ levels(targets$cond)
 
 targets<-AnnotatedDataFrame(targets)
 row.names(targets)
-pData(eset)
+
 
 ## input matrix expression
 celFiles <- list.celfiles()
@@ -56,6 +57,11 @@ pData(eset)
 
 # All samples
 PCA_norm <- prcomp(t(exprs(eset)), scale = FALSE)
+
+# NOTCH context, excluding N_KO_3 because of its levels of Ctnnb1
+filter <- colnames(eset)[eset@phenoData@data$Infection=="N"]
+eset_NICD<-eset[,filter]
+PCA_norm <- prcomp(t(exprs(eset_NICD)), scale = FALSE)
 
 summary(PCA_norm)
 
@@ -82,7 +88,7 @@ ggplot(dataGG, aes(PC1, PC2,label)) +
   theme_bw()
 
 
-oligo::boxplot(eset, target = "core", 
+oligo::boxplot(eset_NICD, target = "core", 
                main = "Boxplot of log2-intensitites for the raw data")
 
 
@@ -157,7 +163,7 @@ write.exprs(eset,file="data.txt")
 
 ## ANNOTATION BM is 10, FL is 20
 
-Annot_bioc <- AnnotationDbi::select(mogene20sttranscriptcluster.db,
+Annot_bioc <- AnnotationDbi::select(mogene10sttranscriptcluster.db,
                                        keys = (featureNames(eset)),
                                        columns = c("SYMBOL", "GENENAME"),
                                        keytype = "PROBEID")
@@ -185,9 +191,6 @@ Annot_bioc<-merge(Annot_bioc,probe_stats,by="PROBEID",all.x=TRUE)
 #table(ids_to_exlude)
 #eset_final <- subset(eset, !ids_to_exlude)
 
-validObject(eset_final)
-head (eset_final)
-head(Annot_bioc)
 
 eset_final<-eset
 
@@ -238,15 +241,15 @@ rownames(design_bkoNICD) <- bko_NICD
 
 # Example checking expression of one gene
 #i_NICD<-i_NICD[infection == "N"]
-crat_expr <- exprs(eset_final)[row.names(exprs(eset_final)) %in% c(Annot_bioc[Annot_bioc$SYMBOL=="Ctnnb1",]$PROBEID), ]
-#crat_expr <- exprs(eset_final)[row.names(exprs(eset_final)) == "17523257", ]
+crat_expr <- exprs(eset_final)[row.names(exprs(eset_final)) %in% c(Annot_bioc[Annot_bioc$SYMBOL=="Ctnnb1" ,]$PROBEID), ]
+crat_expr <- exprs(eset_final)[row.names(exprs(eset_final)) == "17392780", ]
 
 crat_data <- as.data.frame(crat_expr)
 #crat_data<-melt(crat_data)
 crat_data$samp<-row.names(crat_data)
 
 ggplot(data = crat_data, aes(x = samp, y = crat_expr)) +
-  geom_point() +
+  geom_point(size=5) +
   theme_bw()+
   theme(axis.text.x = element_text(angle=90))+
   ggtitle("Expression changes for gene")
@@ -349,7 +352,7 @@ ggplot(data=FC.tab[FC.tab$P.val.bcat_WT<0.01 | FC.tab$P.val.bcat_KO<0.01,],aes(x
 
 
 
-######## Christos script ###
+######## Christos script ######
 
 cont.matrix <- makeContrasts(NvsCinWT=WT.N-WT.C,
                              NvsCinKO=KO.N-KO.C,
@@ -375,3 +378,4 @@ write.table(fit2,file="fit2",sep="\t")
 
 results <- decideTests(fit2)
 vennDiagram(results)
+######

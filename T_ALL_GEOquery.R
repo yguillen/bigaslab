@@ -1613,7 +1613,7 @@ bcat_att<-getBM(attributes = c("external_gene_name",'hgnc_symbol', 'chromosome_n
       mart = hg)
 
 
-                                                                                                                                     bcat_sig1<-filter(expannot_GSE14618_1, grepl(paste0(bcat_pattern,'\\>',collapse = '|'),symbol))
+bcat_sig1<-filter(expannot_GSE14618_1, grepl(paste0(bcat_pattern,'\\>',collapse = '|'),symbol))
 bcat_sig2<-filter(expannot_GSE14618_1, grepl(paste0(setdiff(bcat_pattern,bcat_sig1$symbol),' ',collapse = '|'),symbol))
 bcat_sig3<-filter(expannot_GSE14618_1, grepl(paste0(' ',setdiff(bcat_pattern,bcat_sig1$symbol),collapse = '|'),symbol))
 
@@ -1693,24 +1693,35 @@ myBreaks <- c(seq(min(scale(t(bcat_sig))), 0, length.out=round(ceiling(paletteLe
               seq(0.1,2.5,length.out = round(ceiling(paletteLength*0.45))),
               seq(2.6, max(scale(t(bcat_sig))), length.out=round(floor(paletteLength*0.10))))
 
+annot_col<-data.frame(row.names=row.names(pheno_GSE14618_gpl96),
+           First_event=gsub(' \\(.*','',pheno_GSE14618_gpl96$description),
+           bcat_exp=as.numeric(df_1$bcat_exp),
+           brca1_exp_prob1=as.numeric(df_1[,3]),
+           brca1_exp_prob2=as.numeric(df_1[,2]),
+           kaiso_exp=as.numeric(df_1$kaiso_exp))
+
 phet<-pheatmap(as.data.frame(t(scale(t(bcat_sig)))),
                annotation_col = data.frame(row.names=row.names(pheno_GSE14618_gpl96),
                                            First_event=gsub(' \\(.*','',pheno_GSE14618_gpl96$description),
-                                           bcat_exp=as.numeric(df_1$CTNNB1),
-                                           brca1_exp_prob1=as.numeric(df_1[,3]),
-                                           brca1_exp_prob2=as.numeric(df_1[,2]),
-                                           kaiso_exp=as.numeric(df_1$ZBTB33)),
-             #  annotation_row = colcol[,c(6,11,12,13,14)],
+                                           bcat_exp=as.numeric(df_1$bcat_exp)),
+                                      #     brca1_exp_prob1=as.numeric(df_1[,3]),
+                                      #     brca1_exp_prob2=as.numeric(df_1[,2]),
+                                      #     kaiso_exp=as.numeric(df_1$kaiso_exp)),
+               annotation_row = ,
                show_colnames=F,
                show_rownames = F,
                fontsize = 6,
-               cutree_cols = 3,
+               cutree_cols = 5,
                cutree_rows = 5,
                color=cols,
              breaks=myBreaks)
 
+
+
+
 clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=5)))
-patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=3)))
+patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=5)))
+
 
 
 table(patients$cluster)
@@ -1744,8 +1755,12 @@ patinfo$bcat_exp<-as.numeric(patinfo$bcat_exp)
 patinfo$brca1_exp_prob1<-as.numeric(patinfo$brca1_exp_prob1)
 patinfo$brca1_exp_prob2<-as.numeric(patinfo$brca1_exp_prob2)
 
+row.names(patinfo)<-patinfo$Row.names
+patinfo<-merge(patinfo,annot_col[,c(1,4)],by=0)
+patinfo$Row.names<-NULL
+
 ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp, FUN = median),y=scale(bcat_exp)))+
-  geom_point(aes(size=order))+
+  geom_point(aes(color=First_event))+
   geom_boxplot(alpha=0.2,lwd=1)+
   geom_hline(yintercept = median(scale(patinfo$bcat_exp)),color="red",lwd=2)+
   geom_hline(yintercept = quantile(scale(patinfo$bcat_exp))[4],color="grey",lwd=2)+
@@ -1756,6 +1771,24 @@ ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp, FUN = median),y=scale
         text = element_text(size=10),
         axis.text.x = element_text(angle=45, size=14,hjust=1),
         axis.text.y = element_text(angle=45, size=14,hjust=1))
+
+
+prop_clust1<-data.frame(prop.table(table(patinfo$cluster,patinfo$First_event),1))
+colnames(prop_clust1)<-c("cluster","First_event","Proportion")
+prop_clust1$cluster<-as.factor(prop_clust1$cluster)
+
+prop_clust1$cluster<- factor(prop_clust1$cluster, levels=c("5","4","2","3","1"))
+
+ggplot(prop_clust1,aes(x=cluster,y=Proportion,fill=First_event))+
+  geom_col(color="black")+
+  scale_fill_manual(values=c("dodgerblue","green","darkolivegreen","cyan"))+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
 
 
 ### pheno data survival for _2
@@ -1838,6 +1871,22 @@ table(clusters$cluster)
 clusters$Gene<-row.names(clusters)
 clusters[clusters$cluster==1,]$Gene
 
+clusters_micro_uns<-clusters
+
+#for ggsea
+tclust1<-rbind(as.data.frame(t(clusters[clusters$cluster==1,])))
+tclust1<-cbind("cluster1","na",tclust1[-1,])
+write.table(tclust1,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster1.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+
+tclust2<-rbind(as.data.frame(t(clusters[clusters$cluster==2,])))
+tclust2<-cbind("cluster2","na",tclust2[-1,])
+write.table(tclust2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster2.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+
+tclust3<-rbind(as.data.frame(t(clusters[clusters$cluster==3,])))
+tclust3<-cbind("cluster3","na",tclust3[-1,])
+write.table(tclust3,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster3.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+
+
 # Order genes (clusters)
 geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2)))[phet$tree_row[["order"]],]))
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% unique(deg_clust_GSE14618[deg_clust_GSE14618$hgnc_symbol !="NA",]$hgnc_symbol)])))[phet$tree_row[["order"]],]))
@@ -1881,7 +1930,7 @@ patinfo$lef_exp_prob2<-as.numeric(patinfo$lef_exp_prob2)
 
 patinfo<-patinfo[,-2]
 
-ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp_prob1, FUN = median),y=scale(kaiso_exp_prob2)))+
+ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = median),y=scale(lef_exp_prob1)))+
 #ggplot(patinfo,aes(x=Outcome,y=scale(bcat_exp_prob1)))+
   geom_point(aes(color=Outcome),size=5)+
   geom_boxplot(alpha=0.2,lwd=1)+
@@ -1895,6 +1944,33 @@ ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp_prob1, FUN = median),y
         text = element_text(size=10),
         axis.text.x = element_text(angle=45, size=14,hjust=1),
         axis.text.y = element_text(angle=45, size=14,hjust=1))
+
+
+kruskal.test(as.factor(patinfo$cluster),patinfo$bcat_exp_prob1)
+my_comparisons <- list( c("1", "2"), c("1", "3"), c("2", "3"),c("1","4"),c("1","3") )
+ggboxplot(patinfo, x = "cluster", y = "bcat_exp_prob1",color="cluster", palette = "jco")+
+  stat_compare_means(comparisons = my_comparisons)+
+  stat_compare_means(method="anova")
+
+prop_clust1<-data.frame(prop.table(table(patinfo$cluster,patinfo$Outcome),1))
+colnames(prop_clust1)<-c("cluster","First_event","Proportion")
+prop_clust1$cluster<-as.factor(prop_clust1$cluster)
+
+prop_clust1$cluster<- factor(prop_clust1$cluster, levels=c("3","1","4","2"))
+
+ggplot(prop_clust1,aes(x=cluster,y=Proportion,fill=First_event))+
+  geom_col(color="black")+
+  scale_fill_manual(values=c("dodgerblue","green","darkolivegreen","cyan"))+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
+
+
+
 
 patinfo$scale_bcat_prob1<-scale(patinfo$bcat_exp_prob1)
 mean(patinfo$scale_bcat_prob1)
@@ -1972,16 +2048,16 @@ pheno_2_pat$Row.names<-NULL
 pheno_2_pat$newcluster<-NA
 pheno_2_pat<-pheno_2_pat %>% 
   mutate(newcluster = case_when(cluster == 1 ~ 1,
-                                cluster == 2 ~ 23,
-                                cluster == 3 ~ 23,
-                                cluster == 4 ~ 4
+                                cluster == 2 ~ 24,
+                                cluster == 3 ~ 3,
+                                cluster == 4 ~ 24
   ))
 
 
 pheno_2_pat$Event<-as.integer(pheno_2_pat$Event)
 pheno_2_pat$Alive<-as.integer(pheno_2_pat$Alive)
 
-surv_C_fit_TALL <- survfit(Surv(EFS_yrs, Event) ~ bcat_extr, data=pheno_2_pat)
+surv_C_fit_TALL <- survfit(Surv(EFS_yrs, Event) ~ newcluster, data=pheno_2_pat)
 ggsurvplot(surv_C_fit_TALL, data = pheno_2_pat,
            pval = TRUE,
            size=2,
@@ -1994,6 +2070,79 @@ ggsurvplot(surv_C_fit_TALL, data = pheno_2_pat,
            font.x = c(20),
            font.y = c(20))
 
+
+## Functional enrichment enrichr web cluster genes
+cluster1_BP<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/BP_Enrichment/GO_Biological_Process_cluster1.txt')
+cluster1_BP$group<-"cluster1"
+cluster3_BP<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/BP_Enrichment/GO_Biological_Process_cluster3.txt')
+cluster3_BP$group<-"cluster3"
+
+cluster1_Biopl<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/Bioplanet_enrichment/BioPlanet_2019_cluster1.txt')
+cluster1_Biopl$group<-"cluster1"
+cluster3_Biopl<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/Bioplanet_enrichment/BioPlanet_2019_cluster3.txt')
+cluster3_Biopl$group<-"cluster3"
+
+clusters_unsup<-rbind(cluster1_Biopl[1:10,],cluster3_Biopl[1:10,],cluster1_BP[1:10,],cluster3_BP[1:10,])
+
+bpsub<-subset(clusters_unsup,clusters_unsup$Adjusted.P.value<=0.05)
+bpsub<- bpsub[order(bpsub$P.value),]
+
+bpsub$Term<-as.factor(bpsub$Term)
+bpsub$Term <- factor(bpsub$Term, levels=unique((bpsub$Term))[rev(order(bpsub$Term,bpsub$Adjusted.P.value))])
+
+library(tidyr)
+#For wiki pathways
+bpsub<-separate(data = bpsub, col = Overlap, into = c("counts", "pathway"), sep = "/")
+bpsub<-separate(data = bpsub, col = Term, into = c("Term", "GO"), sep = "GO")
+bpsub$GO<-gsub(':','',bpsub$GO)
+bpsub$GO<-gsub(')','',bpsub$GO)
+bpsub$Term<-gsub(' \\(','',bpsub$Term)
+
+bpsub$Term <-reorder(bpsub$Term, rev(bpsub$P.value))
+bpsub$Term <- factor(unique(bpsub$Term), levels=bpsub[rev(order(bpsub$Adjusted.P.value)), ]$Term)
+
+nondup_cat<-as.data.frame(table(bpsub$Term))[as.data.frame(table(bpsub$Term))[,2]<2,]$Var1
+
+bpsub$Term <- factor(bpsub$Term, levels=unique(bpsub[rev(order(bpsub$group, rev(abs(bpsub$Combined.Score)))), ]$Term))
+
+bpsub$Term <- factor(bpsub$Term, levels=unique(bpsub[rev(order(bpsub$group, abs(bpsub$P.value))), ]$Term))
+
+
+ggplot(bpsub[bpsub$Term %in% nondup_cat,],aes(y=-log10(P.value),x=Term),alpha = 0.5)+
+  geom_bar(position="dodge",stat = "identity",aes(fill=Combined.Score))+
+  #facet_wrap(~group,scales="free")+
+  theme_minimal()+
+  coord_flip()+
+  theme(axis.title=element_text(size=14,face="bold"),
+        axis.text.x = element_text(size=8, face="bold",hjust = 1),
+        axis.text.y = element_text(size=12, hjust = 1),
+        legend.position = "bottom")+
+  ggtitle("Top 20 Biological Processes")
+
+ggplot(bpsub[bpsub$Term %in% nondup_cat,][1:20,], aes(x = Term, y = -log10(P.value))) +
+  geom_segment(aes(x = Term, xend = Term, y = 0, yend = -log10(P.value)), 
+               color = "lightblue",size=3) + 
+  geom_point(color="darkblue", aes(size = Combined.Score))+
+  theme_void() +
+  coord_flip()+
+  theme(axis.title=element_text(size=10,face="bold"),
+        axis.text.x = element_text(size=10, face="bold",hjust = 1),
+        axis.text.y = element_text(size=10, hjust = 1),
+        legend.position = "bottom")+
+  facet_wrap(~group,scales="free",ncol=1)+
+  ggtitle("Top 10 Enriched Biological Processes")
+
+
+ggplot(bpsub[bpsub$Term %in% nondup_cat,][1:25,], aes(y=group, x=Term)) + 
+  geom_tile(aes(fill = -(log(P.value))),colour = "black",size=0.5)+
+  scale_fill_gradient2(low = "white",
+                       high = "red",
+                       midpoint = 7) +
+  #scale_fill_gradient(low = "blue", high = "red")+
+  theme_cleantable()+
+  theme(axis.text.x = element_text(size=12, hjust = 1,vjust=0.5,angle=90),
+        axis.text.y = element_text(size=12, hjust = 1,face="italic"))+
+  ggtitle("Top 25 Enriched Biological Processes")
 
 
 ## DEGs between clusters or relapse vs remission
@@ -2094,6 +2243,9 @@ deg_GSE14618surv$reg<-ifelse((deg_GSE14618surv$logFC<0),"up","down")
 
 
 deg_clust_GSE14618<-subset(deg_GSE14618surv,deg_GSE14618surv$P.Value<0.05)
+#write.table(deg_clust_GSE14618,'/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/supervised/bcat_DEGs_remindfail_allgenes.txt',quote = FALSE,sep="\t",row.names = FALSE)
+write.table(deg_clust_GSE14618,'/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/supervised/bcat_DEGs_remrelapse_allgenes.txt',quote = FALSE,sep="\t",row.names = FALSE)
+
 genedeg<-deg_clust_GSE14618[,c(3,6,14,15)]
 genedeg<-genedeg[!duplicated(genedeg$ensembl_gene_id),]
 genedeg<-genedeg[!is.na(genedeg$ensembl_gene_id),]
@@ -2115,39 +2267,46 @@ rem_indfail<-rem_indfail[!duplicated(rem_indfail$external_gene_name),]
 rel_indfail<-deg_clust_GSE14618[deg_clust_GSE14618$external_gene_name %in% targdeg,]
 rel_indfail<-rel_indfail[!duplicated(rel_indfail$external_gene_name),]
 
-comp_all<-rbind(rem_rel,rem_indfail)
+comp_all_tot<-rbind(rem_rel,rem_indfail)
 #comp_all<-rbind(comp_all,rel_indfail)
-comp_all<-comp_all[!duplicated(comp_all$hgnc_symbol),]
+comp_all<-comp_all_tot[!duplicated(comp_all_tot$hgnc_symbol),]
 row.names(comp_all)<-comp_all$hgnc_symbol
 
 # Heatmap with b-cat targets DE between relapse and remission in microarrays
 # with no induction failure
 #noind<-row.names(pheno_2[pheno_2$Outcome!="Induction failure",])
 
-myBreaks <- c(seq(min(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all$hgnc_symbol])), 0, length.out=round(ceiling(paletteLength*0.45))),
+myBreaks <- c(seq(min(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol])), 0, length.out=round(ceiling(paletteLength*0.45))),
               seq(0.1,2.5,length.out = round(ceiling(paletteLength*0.45))),
-              seq(2.6, max(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all$hgnc_symbol])), length.out=round(floor(paletteLength*0.10))))
+              seq(2.6, max(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol])), length.out=round(floor(paletteLength*0.10))))
 
 pheno_2$bcat_scale<-scale(pheno_2$bcat_exp_prob1)
 pheno_2$kaiso_scale<-scale(pheno_2$kaiso_exp_prob1)
 pheno_2$tcf_scale<-scale(pheno_2$tcf_exp_prob1)
 pheno_2$lef_scale<-scale(pheno_2$lef_exp_prob1)
 
-phet<-pheatmap(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all$hgnc_symbol]))),
-               annotation_col = pheno_2[,c(54,58,62,64)],
-               #  annotation_row = colcol[,c(6,11,12,13,14)],
-               annotation_row = comp_all[,c(14,16)],
+colgene<-merge(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol]))),clusters_micro_uns,by=0,all.x=TRUE)
+row.names(colgene)<-colgene$Row.names
+colgene$Row.names<-NULL
+
+
+phet<-pheatmap(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol]))),
+               annotation_col = pheno_2[,c(54,56,62,61,37)],
+               annotation_row = data.frame(row.names=row.names(colgene),
+                                            class="Rem_indfail",
+                                           cluster=paste("cluster",as.factor(colgene[,(ncol(colgene)-1)]))),
+        #       annotation_row = comp_all[comp_all$comp=="Rem_indfail",][,c(14,16)],
                show_colnames=F,
                show_rownames = T,
                fontsize = 4,
                cutree_cols = 3,
-               cutree_rows = 3,
+               cutree_rows = 4,
                color=cols,
                breaks=myBreaks)
 
 
 
-clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=3)))
+clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=4)))
 patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=3)))
 
 
@@ -2159,7 +2318,7 @@ clusters[clusters$cluster==1,]$Gene
 # Order genes (clusters)
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2)))[phet$tree_row[["order"]],]))
 #geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% unique(deg_clust_GSE14618[deg_clust_GSE14618$hgnc_symbol !="NA",]$hgnc_symbol)])))[phet$tree_row[["order"]],]))
-geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all$hgnc_symbol])))[phet$tree_row[["order"]],]))
+geneorder<-data.frame(Gene=rownames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol])))[phet$tree_row[["order"]],]))
 geneorder$order<-row.names(geneorder)
 row.names(geneorder)<-geneorder$Gene
 
@@ -2169,7 +2328,7 @@ clusters$order<-as.numeric(clusters$order)
 # Order patients (patients)
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(t_bcat_sig_2)))[,phet$tree_col[["order"]]]))
 #patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% unique(deg_clust_GSE14618[deg_clust_GSE14618$hgnc_symbol !="NA",]$hgnc_symbol)])))[,phet$tree_col[["order"]]]))
-patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all$hgnc_symbol])))[,phet$tree_col[["order"]]]))
+patientorder<-data.frame(Sample=colnames(as.data.frame(t(scale(t_bcat_sig_2[,colnames(t_bcat_sig_2) %in% comp_all[comp_all$comp=="Rem_indfail",]$hgnc_symbol])))[,phet$tree_col[["order"]]]))
 patientorder$order<-row.names(patientorder)
 row.names(patientorder)<-patientorder$Sample
 patientorder$Sample<-NULL
@@ -2199,7 +2358,7 @@ patinfo$lef_exp_prob1<-as.numeric(patinfo$lef_exp_prob1)
 patinfo$lef_exp_prob2<-as.numeric(patinfo$lef_exp_prob2)
 patinfo$lef_exp_prob3<-as.numeric(patinfo$lef_exp_prob3)
 
-ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp_prob1, FUN = median),y=scale(kaiso_exp_prob2)))+
+ggplot(patinfo,aes(x=reorder(as.factor(cluster), bcat_exp_prob1, FUN = median),y=scale(bcat_exp_prob1)))+
   geom_point(aes(color=Outcome),size=5)+
   geom_boxplot(alpha=0.2,lwd=1)+
   scale_color_manual(values=c("chartreuse3","hotpink","deepskyblue"))+
@@ -2274,11 +2433,11 @@ pheno_2_pat$Row.names<-NULL
 
 pheno_2_pat$newcluster<-NA
 pheno_2_pat<-pheno_2_pat %>% 
-  mutate(newcluster = case_when(cluster == 1 ~ 12,
-                                cluster == 2 ~ 12,
-                                cluster == 3 ~ 3,
+  mutate(newcluster = case_when(cluster == 1 ~ 1,
+                                cluster == 2 ~ 2,
+                                cluster == 3 ~ 35,
                                 cluster == 4 ~ 4,
-                                cluster == 5 ~ 5
+                                cluster == 5 ~ 35
   ))
 
 
@@ -2293,11 +2452,11 @@ pheno_2_pat$Alive_bin<-gsub('one',1,pheno_2_pat$Alive_bin)
 
 pheno_2_pat$Alive_bin<-as.integer(pheno_2_pat$Alive_bin)
 
-surv_C_fit_TALL <- survfit(Surv(Surv_yrs, Alive_bin) ~ cluster, data=pheno_2_pat)
+surv_C_fit_TALL <- survfit(Surv(EFS_yrs, Event) ~ cluster, data=pheno_2_pat)
 ggsurvplot(surv_C_fit_TALL, data = pheno_2_pat,
            pval = TRUE,
            size=2,
-           palette = c("red", "gray87","gray60"),
+  #         palette = c("red", "gray87","gray60"),
            ggtheme = theme_bw()+theme(legend.position = "bottom",
                                       legend.text = element_text(size=14),
                                       text = element_text(size=20),

@@ -2997,6 +2997,91 @@ ggplot(pcatab_spl, aes(PC1, PC2,label=SampID)) +
 
 #####
 
+## Surival curves with AS events
+#####
+# Survival with CD47 total levels and HsaEX0013876
+cd47_gene<-melt_vastout[melt_vastout$variable=="ENSG00000196776",]
+cd47_event<-as.data.frame(t(difAS_all[difAS_all$GENE=="CD47",]))
+
+surv_cd47_gene<-subset(cd47_gene,select=c(GSM,First_event,Event_free_surv_days,Age_Dx_days,value))
+surv_cd47_gene<-surv_cd47_gene[surv_cd47_gene$First_event!="Censored" &
+                                 surv_cd47_gene$First_event!="Second Malignant Neoplasm" &
+                                 !is.na(surv_cd47_gene$First_event),]
+
+boxplot(surv_cd47_gene$value)
+
+surv_cd47_gene<-surv_cd47_gene %>% mutate(CD47_group =  ifelse(value >=200, "CD47_high", "CD47_low"))
+surv_cd47_gene<-surv_cd47_gene %>% mutate(disease_free =  ifelse(First_event == "Remission", 0, 1))
+
+surv_cd47_gene$CD47_group<- factor(surv_cd47_gene$CD47_group)
+
+row.names(surv_cd47_gene)<-surv_cd47_gene$GSM
+
+surv_object <- Surv(time = surv_cd47_gene$Event_free_surv_days/365, event = surv_cd47_gene$disease_free)
+fit1 <- survfit(surv_object ~ CD47_group, data = surv_cd47_gene)
+summary(fit1)
+ggsurvplot(fit1, data = surv_cd47_gene, pval = TRUE)
+
+
+fit.coxph<- coxph(Surv(Event_free_surv_days/365, disease_free) ~ CD47_group, 
+                  data = surv_cd47_gene,
+                  ties = 'exact')
+summary(fit.coxph)
+
+ggforest(fit.coxph)
+
+
+## skipping event
+
+cd47_skip<-difASm[difASm$EVENT=="HsaEX0013876",]
+row.names(cd47_skip)<-cd47_skip$SampID
+
+surv_cd47_skip<-subset(cd47_skip,select=c(SampID,First_event,Event_free_surv_days,Age_Dx_days,value))
+surv_cd47_skip<-surv_cd47_skip[surv_cd47_skip$First_event!="Censored" &
+                                 surv_cd47_skip$First_event!="Second Malignant Neoplasm" &
+                                 !is.na(surv_cd47_skip$First_event) &
+                                 surv_cd47_skip$First_event!="Secondary leukemia" &
+                                 surv_cd47_skip$First_event!="Disease",]
+
+
+boxplot(surv_cd47_skip$value)
+
+surv_cd47_skip<-surv_cd47_skip %>% mutate(CD47skip_group =  ifelse(value <=90, "CD47skip_low", "CD47skip_high"))
+surv_cd47_skip<-surv_cd47_skip %>% mutate(disease_free =  ifelse(First_event == "Remission", 0, 1))
+
+surv_cd47_skip$CD47skip_group<- factor(surv_cd47_skip$CD47skip_group)
+
+surv_object <- Surv(time = surv_cd47_skip$Event_free_surv_days/365, event = surv_cd47_skip$disease_free)
+fit1 <- survfit(surv_object ~ CD47skip_group, data = surv_cd47_skip)
+summary(fit1)
+ggsurvplot(fit1, data = surv_cd47_skip, pval = TRUE)
+
+
+fit.coxph<- coxph(Surv(Event_free_surv_days/365, disease_free) ~ CD47skip_group, 
+                  data = surv_cd47_skip,
+                  ties = 'exact')
+summary(fit.coxph)
+
+ggforest(fit.coxph)
+
+
+
+# Merging
+row.names(surv_cd47_skip)<-surv_cd47_skip$SampID
+
+surv_cd47<-merge(surv_cd47_gene,surv_cd47_skip,by=0)
+
+plot(surv_cd47$value.x,surv_cd47$value.y)
+
+
+fit.coxph<- coxph(Surv(Event_free_surv_days.x/365, disease_free.x) ~ value.x+value.y, 
+                  data = surv_cd47,
+                  ties = 'exact')
+summary(fit.coxph)
+
+ggforest(fit.coxph)
+
+#####
 
 ## Somatic and structural mutations associated to certain alternative splicing events
 #####

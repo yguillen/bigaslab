@@ -22,7 +22,6 @@ ui <- fluidPage(
       #plotOutput("boxplot2"),
       plotOutput("boxplot4"),
       plotOutput("boxplot3"),
-      plotOutput("boxplotclust"),
       plotOutput("boxplot5")
     )
   )
@@ -72,9 +71,9 @@ output$boxplot2 <- renderPlot({
 
 output$boxplot3 <- renderPlot({
   gene <- input$thegene
-  ggplot(data=melt_vastout[melt_vastout$NAME==gene,],aes(x=First_event,y=value))+
+  ggplot(data=melt_vastout[melt_vastout$NAME==gene,],aes(x=Type,y=value))+
     geom_point(color="black",size=6)+
-    geom_point(data=melt_vastout[melt_vastout$GSEA!="line" & melt_vastout$NAME==gene,],aes(color=First_event),size=5)+
+    geom_point(data=melt_vastout[melt_vastout$GSEA!="line" & melt_vastout$NAME==gene,],aes(color=Type),size=5)+
     geom_boxplot(data=melt_vastout[melt_vastout$NAME==gene,],alpha=0)+
     #geom_point(data=melt_vastout[melt_vastout$GSEA=="GSE69239" & melt_vastout$NAME=="RBM39",],size=5)+
     geom_point(data=melt_vastout[melt_vastout$GSEA=="line" & melt_vastout$NAME==gene,],aes(color=Pheno),size=5)+
@@ -88,28 +87,7 @@ output$boxplot3 <- renderPlot({
   
   
 })
-
-#melt_vastout_clust<-merge(melt_vastout,cuns,by.x="sample",by.y="SampID")
-#melt_vastout_clust$uns_clust<-as.factor(melt_vastout_clust$uns_clust)
-
-output$boxplotclust <- renderPlot({
-  gene <- input$thegene
-  ggplot(data=melt_vastout_clust[melt_vastout_clust$NAME==gene,],aes(x=as.factor(uns_clust),y=value))+
-    geom_point(color="black",size=6)+
-    geom_point(data=melt_vastout_clust[melt_vastout_clust$NAME==gene,],aes(color=uns_clust),size=5)+
-    geom_boxplot(data=melt_vastout_clust[melt_vastout_clust$NAME==gene,],aes(color=uns_clust),alpha=0)+
-    #geom_point(data=melt_vastout[melt_vastout$GSEA=="GSE69239" & melt_vastout$NAME=="RBM39",],size=5)+
-    #scale_shape_manual(values=c(0,8,2,5,6,7,10,11,12,9))+
-    scale_color_brewer(palette="Spectral")+
-    #facet_wrap(~GSEA,scales="free",nrow=1)+
-    theme_bw()+
-    theme(axis.text.x = element_text(angle=45, hjust = 1),
-          legend.position = "bottom")
   
-  
-  
-})
-
 output$boxplot4 <- renderPlot({
   gene <- input$thegene
   ggplot(data=melt_vastout[melt_vastout$NAME==gene & melt_vastout$GSEA=="GSE69239",],aes(x=Source,y=value))+
@@ -139,7 +117,7 @@ ggplot(difASm[difASm$GENE==gene,],aes(x=Type,y=value))+
   new_scale_color()+
   geom_point(data=difASm[difASm$GENE==gene & difASm$GSEA=="line",],aes(color=Pheno),size=5)+
   scale_color_manual(values=c("yellow","pink"))+
-  facet_wrap(~EVENT,scales="free_x",ncol = 4)+
+  facet_wrap(~EVENT,scales="free",ncol = 3)+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust = 1))
 

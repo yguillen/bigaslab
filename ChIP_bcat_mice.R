@@ -837,19 +837,19 @@ ggplot(bpsub,aes(y=-log10(P.value),x=Term,fill=group),alpha = 0.5)+
 # Heatmap distribution annotations
 
 DB_freq<-peakAnnoDB_black@annoStat
-DB_freq$group="bcat"
+DB_freq$group="bcat_basal"
 DB_freq$model="human_control"
 
 DBL_freq<-peakAnnoDBL_black@annoStat
-DBL_freq$group="bcat"
+DBL_freq$group="bcat_Li"
 DBL_freq$model="human_Li"
 
 RBCS_freq<-peakAnnoRBCS_black@annoStat
-RBCS_freq$group="bcat_SC"
+RBCS_freq$group="bcat_SC_basal"
 RBCS_freq$model="human_control"
 
 RBLS_freq<-peakAnnoRBLS_black@annoStat
-RBLS_freq$group="bcat_SC"
+RBLS_freq$group="bcat_SC_Li"
 RBLS_freq$model="human_Li"
 
 TCF_freq<-peakAnnoTCF_black@annoStat
@@ -900,7 +900,10 @@ ggplot(allfreq, aes(x=Feature, y=group)) +
   facet_grid(~ model, switch = "x", scales = "free_y", space = "free_x")+
   ggtitle("Genome feature distribution")
 
-# Genomics distribution of peaks
+# Genomics distribution of peaks all experiments
+distfreqbcat<-rbind(DB_freq,DBL_freq,RBCS_freq,RBLS_freq)
+
+# Genomics distribution of peaks DB and SC b-cat
 distfreqbcat<-rbind(DB_freq,DBL_freq,RBCS_freq,RBLS_freq)
 
 distfreqbcat$Feature<-gsub('Promoter.*','Promoter',distfreqbcat$Feature)
@@ -915,9 +918,9 @@ distfreqbcat$groups<-factor(distfreqbcat$groups,levels = c("bcat_human_control",
 
 
 
-ggplot(distfreqbcat,aes(x=groups,y=Frequency,fill=Feature))+
+ggplot(distfreqbcat,aes(x=group,y=Frequency,fill=Feature))+
   geom_bar(stat="identity",color="black") +
-  scale_fill_brewer(palette="Pastel1")+
+  scale_fill_brewer(palette="Paired")+
   theme_light()+
   theme(axis.text.x = element_text(angle=45,vjust=1,hjust=1,size=12),
         axis.text.y = element_text(size=12),
