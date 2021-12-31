@@ -1,5 +1,5 @@
 # bigaslab
-Files and Scripts generated at Bigas lab
+Files and Scripts generated at Bigas lab (2018 - 2022)
 ### Yolanda Guillén January 2022
 
 
