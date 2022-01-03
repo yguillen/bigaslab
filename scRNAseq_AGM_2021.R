@@ -26,11 +26,17 @@ library(ggrepel)
 library(gridExtra)
 library(reshape2)
 library(heatmaply)
+library(ggnewscale)
+library(RColorBrewer)
+library(pheatmap)
 
 #Set seed to reproduce the data every time
 set.seed(100)
 
-setwd("/Volumes/cancer/Rosh_scRNA/htseq/")
+#setwd("/Volumes/cancer/Rosh_scRNA/htseq/")
+setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
+
+##### importing counts for cyclone ####
 
 #counts<-read.table("counts.txt",header=TRUE,row.names=1,sep=" ",stringsAsFactors = FALSE)
 counts_agm<-read.table("htseq_counts_genes.txt",header=TRUE,row.names=1,stringsAsFactors = FALSE)
@@ -88,6 +94,10 @@ write.table(cycG1,"/Volumes/cancer/Rosh_scRNA/scanpy/G1_score_cyclone.txt",sep="
 write.table(cycG2M,"/Volumes/cancer/Rosh_scRNA/scanpy/G2M_score_cyclone.txt",sep="\t",col.names = FALSE,row.names = TRUE,quote = FALSE)
 write.table(cycS,"/Volumes/cancer/Rosh_scRNA/scanpy/S_score_cyclone.txt",sep="\t",col.names = FALSE,row.names = TRUE,quote = FALSE)
 
+#####
+
+
+##### preparing FACS data ####
 
 ## Generate FACS index data ordered
 #metadata all cells, all batches
@@ -118,18 +128,15 @@ colnames(facsindex_g)<-c("Position","DLL4","NOTCH2","cKIT","GF1","CD41","NOTCH1"
 facsindex_g<-merge(cell_metadata,facsindex_g,all.x=TRUE,by="Position",sort=FALSE)
 row.names(facsindex_g)<-facsindex_g$ID
 write.table(facsindex_g,'/Volumes/cancer/Rosh_scRNA/scanpy/FACS_data/metadata_facs.txt',quote = FALSE,row.names = TRUE,sep="\t")
+#####
 
-#############
 
-######### Import scanpy results
+######### Import scanpy results and metadata ####
 
 ### SCANPY RESULTS WITH ALL CELLS
 #setwd("/Volumes/grcmc/YGUILLEN/scRNA_cam/scanpy_run/cellbrowser_output/")
-#setwd("/Users/yguillen/Desktop/temp/scRNA_cam/scanpy_run/cellbrowser_output/")
+setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
 
-### SCANPY RESULTS EXCLUDING PRIMORDIAL CELLS
-#setwd("/Volumes/grcmc/YGUILLEN/scRNA_cam/scanpy_run/cellbrowser_noclust6_output/")
-setwd("/Users/yguillen/Desktop/temp/scRNA_cam/scanpy_run/cellbrowser_noclust6_output/")
 
 UMAPsc<-read.delim("umap_coords.tsv")
 colnames(UMAPsc)<-c("sampleID","UMAP_C1","UMAP_C2")
@@ -144,166 +151,246 @@ row.names(metasc)<-metasc$sampleID
 metasc$sampleID<-NULL
 
 #pseudotime
-pdt<-read.delim("/Users/yguillen/Desktop/temp/scRNA_cam/scanpy_run/pseudotime.csv",sep=",")
+pdt<-read.delim("dpt_pseudotime_allcels.tsv",sep=",")
 row.names(pdt)<-pdt$X
 pdt
 dim(pdt)
 
 row.names(metasc)
-row.names(metasc)
-dim(metasc)
+row.names(UMAPsc)
+
+# metadata FACS
+meta_facs<-read.delim("metadata_facs.txt")
+dim(meta_facs)
+row.names(meta_facs)<-meta_facs$Cell
 
 metasc<-merge(metasc,pdt,by="row.names")
 row.names(metasc)<-metasc$Row.names
 metasc$Row.names<-NULL
 metasc$X<-NULL
 
-# metadata
-meta
+dim(metasc)
+metasc<-merge(metasc,UMAPsc,by=0)
+row.names(metasc)<-metasc$Row.names
+metasc$Row.names<-NULL
 
-#matching clusters Louvain scanpy and UMAP Zaki
-metasc_cluster<-subset(metasc,select=Louvain_cluster)
-metasc_cluster$exp<-"Louvain"
-colnames(metasc_cluster)<-c("cluster","exp")
-metasc_cluster$cluster<-as.factor(metasc_cluster$cluster)
-metasc_cluster$cell<-row.names(metasc_cluster)
+metasc<-merge(meta_facs,metasc,by=0)
+row.names(metasc)<-metasc$Row.names
+metasc$Row.names<-NULL
 
-metazaki_clusters$exp<-"Zaki"
-colnames(metazaki_clusters)<-c("cluster","exp")
-metazaki_clusters$cell<-row.names(metazaki_clusters)
+scanpy<-metasc
 
-#mito<-subset(metasc,select=c(Louvain_cluster,Mito_perc))
-#colnames(mito)<-c("cluster","mito")
-#mito$cluster<-as.factor(metasc_cluster$cluster)
-
-metasc_cluster$cell<-row.names(metasc_cluster)
+cyclone<-read.delim("../cellbrowser_output/cyclone_scRNAseq.txt",header = FALSE)
+colnames(cyclone)<-c("ID","cycle")
+row.names(cyclone)<-cyclone$ID
+row.names(cyclone)<-gsub('\\.','-',row.names(cyclone))
 
 
-# merge info clusters both metadata
-allcluster<-rbind(metazaki_clusters,metasc_cluster)
-dim(metazaki_clusters)
-dim(metasc_cluster)
-
-require(easyalluvial)
-require(tidyverse)
-
-col_vector = c('coral','gold','dodgerblue','darkolivegreen','orange','darkcyan','blue','darksalmon','grey')
-
-p<-alluvial_long(allcluster
-                 , key = exp
-                 , value = cluster
-                 , id = cell
-                 , fill_by = 'value'
-                 , col_vector_flow = col_vector
-                 ,NA_label = 'no_match'
-                 , col_vector_value = col_vector
-)
-
-
-p<-p+
-  theme_minimal()+
-  theme(axis.text.x = element_text(size=12,angle = 45, hjust = 1),
-        axis.text.y = element_text(size=12))
-p
-
-ggsave(p,filename ="../../Roshana_scRNA/Plots/scanpy/compare_clusters_Zaki.pdf" )
-
-## Results UMAP Louvain scanpy
-
-scanpy<-merge(UMAPsc,metasc,by="row.names")
+scanpy<-merge(scanpy,cyclone,by=0)
 row.names(scanpy)<-scanpy$Row.names
-scanpy$Row.names=NULL
+scanpy$Row.names<-NULL
 
-scanpy<-merge(scanpy,meta,by="row.names")
-row.names(scanpy)=scanpy$Row.names
-scanpy$Row.names=NULL
-colnames(scanpy)[1]<-"sampleID"
+scanpy$ID.y<-NULL
+colnames(scanpy)[3]<-"ID"
+
+#####
+
+##### Ploting UMAP ####
 
 
-#Plot UMAP
-# add Zaki clusters info
-scanpy_ad<-merge(scanpy,metazaki_clusters,by="row.names",all=TRUE)
-row.names(scanpy_ad)<-scanpy_ad$Row.names
-
-library(ggnewscale)
-
-UMAP_comp<-ggplot(scanpy_ad,aes(x=UMAP_C1,y=UMAP_C2))+
-  geom_point(aes(color=as.factor(cluster)),size=5)+
+UMAP_comp<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
   scale_color_brewer(palette="Spectral")+
   new_scale("color")+
-  geom_point(color="white",size=3)+
-  geom_point(aes(color=as.factor(Louvain_cluster)),size=2)+
+  geom_point(aes(color=as.factor(Louvain_cluster)),size=3)+
   scale_color_brewer(palette="Spectral")+
   theme_bw()+
   theme(legend.position = "bottom")
 
 UMAP_comp
 
-ggsave(UMAP_comp,filename = "../../Roshana_scRNA/Plots/scanpy/comp_clusters_UMAP.pdf")
+ggsave(UMAP_comp,filename = "../plots/UMAP_all.pdf")
 
-## UMAP with only scanpy info, we can label cells
-UMAP_lab<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2,labels=sampleID))+
+
+UMAPpop<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   geom_point(color="black",size=4)+
-  geom_point(aes(color=as.factor(Louvain_cluster)),size=3)+
-  scale_color_brewer(palette="Spectral")+
-  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
-  theme_bw()+
-  theme(legend.position = "bottom")
-
-UMAP_lab
-
-ggsave(UMAP_lab,filename = "/Volumes/grcmc/YGUILLEN/scRNA_cam/Roshana_scRNA/Plots/scanpy/UMAP_lab_filtercells.pdf")
-
-# pseudotime
-UMAP_pst<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2,labels=sampleID))+
-  geom_point(color="black",size=4)+
-  geom_point(aes(color=dpt_pseudotime),size=3)+
-  scale_color_gradient(low="white",high="blue")+
-  #geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
-  theme_bw()+
-  theme(legend.position = "bottom")
-
-UMAP_pst
-
-
-UMAPpop<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2,labels=sampleID))+
-  geom_point(color="black",size=5,alpha=0.5)+
-  geom_point(aes(color=population),size=4,alpha=0.5)+
-  #scale_color_brewer(palette="Spectral")+
-  scale_color_manual(values=c("blue","red","green"))+
-  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
+  geom_point(aes(color=Population),size=3)+
+  scale_color_brewer(palette="Paired")+
+#  scale_color_manual(values=c("cyan","red","darkolivegreen"))+
+#  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
   theme_bw()+
   theme(legend.position = "bottom")
 
 UMAPpop
 
-ggsave(UMAPpop,filename = "/Volumes/grcmc/YGUILLEN/scRNA_cam/Roshana_scRNA/Plots/scanpy/UMAP_pop.pdf")
+ggsave(UMAPpop,filename = "../plots/UMAP_population.pdf")
+
+UMAPtime<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
+  geom_point(aes(color=Timepoint),size=3)+
+  scale_color_brewer(palette="Paired")+
+  #  scale_color_manual(values=c("cyan","red","darkolivegreen"))+
+  #  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+UMAPtime
+
+ggsave(UMAPtime,filename = "../plots/UMAP_timepoint.pdf")
+
+
+# pseudotime
+UMAP_pst<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
+  geom_point(aes(color=dpt_pseudotime),size=3)+
+  scale_color_gradient(low="white",high="blue")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+UMAP_pst
+
+ggsave(UMAP_pst,filename = "../plots/UMAP_psdt.pdf")
+
+
+# cell cycle
+UMAP_cycle<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
+  geom_point(aes(color=cycle),size=3)+
+  scale_color_brewer(palette="Accent")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+UMAP_cycle
+
+ggsave(UMAP_cycle,filename = "../plots/UMAP_cycle.pdf")
+
+## merging with gene expression
+t_exprmat<-as.data.frame(t(exprmat))
+colnames(t_exprmat)<-gsub('ENS.*\\|','',colnames(t_exprmat))
+t_exprmat<-t_exprmat[-1,]
+
+
+ix <- 1:ncol(t_exprmat)
+t_exprmat[ix] <- lapply(t_exprmat[ix], as.character)
+t_exprmat[ix] <- lapply(t_exprmat[ix], as.numeric)
+row.names(t_exprmat)<-gsub('\\.','-',row.names(t_exprmat))
+
+scanpy<-merge(scanpy,t_exprmat,by=0)
+
+
+### FACS data
+
+p1<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
+  geom_point(color="white",size=3)+
+  #  geom_point(aes(color=Notch1),size=3)+
+  geom_point(aes(color=Vcan),size=3)+
+  #  geom_point(aes(color=Dll4),size=3)+
+  #  scale_color_gradient(low="white",high="red")+
+  #  scale_color_gradientn(colors=rev(cols), 
+  #                        breaks = breaks)+
+  scale_color_gradient(low="white",high="red")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+p1
+ggsave(p1,filename = "../plots/Hey2.pdf")
+
+p2<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],color="black",size=4)+
+  geom_point(color="white",size=3)+
+#  geom_point(aes(color=Notch1),size=3)+
+  geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],aes(color=NOTCH2),size=3)+
+  #  geom_point(aes(color=Dll4),size=3)+
+  #  scale_color_gradient(low="white",high="red")+
+  #  scale_color_gradientn(colors=rev(cols), 
+  #                        breaks = breaks)+
+  scale_color_gradient(low="white",high="red")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+p2
+
+ggsave(p2,filename = "../plots/Notch2_EHT_gene.pdf")
+
+
+scanpy_facs<-subset(scanpy,select=c("UMAP_C1","UMAP_C2","Row.names","DLL4","Dll4","NOTCH1","Notch1",
+                                    "NOTCH2","Notch2","CKIT","Kit","GFI1","Gfi1","CD41","Itga2b",
+                                    "CD45","Ptprc","CD31","Pecam1","Louvain_cluster","Timepoint","Population"))
+row.names(scanpy_facs)<-scanpy_facs$Row.names
+
+
+# distribution FACS indexes (DLL4 rescale)
+
+ggplot(scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),])+
+  geom_density(aes(x=NOTCH2))+
+  theme_bw()
+
+cols <- colorRampPalette(rev(brewer.pal(9,name="Reds")))(40)
+
+paletteLength<-length(cols)
+
+#breaks
+breaks<-c(seq(min(scanpy[ !is.na(scanpy$JAG1) & (scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2" ),]$NOTCH2),
+      -250,
+      length.out=round(ceiling(paletteLength*0.40))), 
+  seq(-249,200,length.out=round(ceiling(paletteLength*0.40))),
+  seq(201, max(scanpy[ !is.na(scanpy$JAG1) & (scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2" ),]$NOTCH2), length.out=round(floor(paletteLength*0.20))))
+
+p3<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],color="black",size=4)+
+  geom_point(color="white",size=3)+
+  geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],aes(color=NOTCH2),size=3)+
+#  geom_point(aes(color=Dll4),size=3)+
+#  scale_color_gradient(low="white",high="red")+
+#  scale_color_gradientn(colors=rev(cols), 
+#                        breaks = breaks)+
+  scale_color_gradient2(low="white",mid = "white",high="red", 
+                        breaks = breaks)+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+p3
+
+ggsave(p3,filename = "../plots/JAG1_EHT.pdf")
+
+
+p4<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
+  geom_point(color="black",size=4)+
+  geom_point(color="white",size=3)+
+  #  geom_point(aes(color=Notch1),size=3)+
+  geom_point(data=scanpy[(scanpy$Louvain_cluster=="4"),],aes(color=Gapdh),size=3)+
+  #  geom_point(aes(color=Dll4),size=3)+
+    scale_color_gradient(low="white",high="red")+
+  #  scale_color_gradientn(colors=rev(cols), 
+  #                        breaks = breaks)+
+#  scale_color_brewer(palette = "Spectral")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+p4
 
 
 
-#3D plot
-#p <- plot_ly(scanpy, x = ~UMAP_C1, y = ~UMAP_C2, z = ~UMAP_C3,color=~as.factor(Louvain_cluster)) %>%
-#  add_markers() %>%
-#  layout(scene = list(xaxis = list(title = 'UMAP_C1'),
-#                      yaxis = list(title = 'UMAP_C2'),
-#                      zaxis = list(title = 'UMAP_C3'))
-#  )
+p4<-ggplot(scanpy[(scanpy$Louvain_cluster=="4"),],aes(x=Timepoint,y=Dll4))+
+  geom_point(color="black",size=4)+
+  geom_point(aes(color=Timepoint),size=3)+
+  geom_violin(alpha=0.2)+
+  #  geom_point(aes(color=Notch1),size=3)+
+  #  geom_point(aes(color=Dll4),size=3)+
+  #scale_color_gradient(low="white",high="red")+
+  #  scale_color_gradientn(colors=rev(cols), 
+  #                        breaks = breaks)+
+  scale_color_brewer(palette = "Spectral")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+p4
 
-#p
-
-#p <- plot_ly(scanpy, x = ~UMAP_C1, y = ~UMAP_C2, z = ~UMAP_C3,
-#             marker = list(color = ~Notch2,colorscale=c("'#FFE1A2'", '#3565C6'), showscale = TRUE)) %>%
-#  add_markers() %>%
-#  layout(scene = list(xaxis = list(title = 'UMAP_C1'),
-#                      yaxis = list(title = 'UMAP_C2'),
-#                      zaxis = list(title = 'UMAP_C3'))
-#  )
-
-#p
+ggsave(p4,filename = "../plots/HE_timepoint.pdf")
 
 #Select cells for each of clusters
 # Number of clusters
 table(scanpy$Louvain_cluster)
+
+
+#####
 
 
 ###### generating output clusters tables ####
