@@ -100,7 +100,7 @@ phet<-pheatmap(as.data.frame(t(scale(comp_sct))),
          show_colnames=F,
          show_rownames = T,
          fontsize = 4,
-        # cutree_cols = 12,
+         cutree_cols = 60,
         color=cols,
         breaks=myBreaks,
          cutree_rows = 10)
@@ -123,7 +123,7 @@ pheatmap(as.data.frame(t(scale(comp_sct[,colnames(comp_sct) %in% sel]))),
 
 
 clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=10)))
-patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=12)))
+patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=60)))
 
 clusters$Gene<-row.names(clusters)
 
@@ -172,6 +172,10 @@ exp_meta$Row.names<-NULL
 
 exp_meta<-merge(meta,exp_meta,by=0)
 
+# merge with b-cat matrix clusters
+row.names(exp_meta)<-exp_meta$Row.names
+exp_meta<-merge(patients,exp_meta,by=0)
+
 library(ggnewscale)
 
 ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
@@ -183,12 +187,21 @@ ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
   theme_bw()+
   theme(legend.position = "bottom")
 
+ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
+  geom_point(color="grey",size=4)+
+  new_scale("color")+
+  geom_point(data=exp_meta[exp_meta$cluster==2,],aes(shape=time_cell),color="black",size=4)+
+  geom_point(data=exp_meta[exp_meta$cluster==2,],aes(shape=time_cell,color=order),size=3)+
+  scale_color_gradient(low="white",high="red")+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
 
 p1<-ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
   geom_point(color="grey",size=4)+
   new_scale("color")+
   geom_point(data=exp_meta[exp_meta$time_cell=="Rx_CD7+",],color="black",size=4)+
-  geom_point(data=exp_meta[exp_meta$time_cell=="Rx_CD7+",],aes(color=TMED1),size=3)+
+  geom_point(data=exp_meta[exp_meta$time_cell=="Rx_CD7+",],aes(color=RPS6),size=3)+
   scale_color_gradient(low="white",high="red")+
   theme_bw()+
   theme(legend.position = "bottom")
@@ -197,7 +210,7 @@ p2<-ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
   geom_point(color="grey",size=4)+
   new_scale("color")+
   geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7+",],color="black",size=4)+
-  geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7+",],aes(color=TMED1),size=3)+
+  geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7+",],aes(color=RPS6),size=3)+
   scale_color_gradient(low="white",high="red")+
   theme_bw()+
   theme(legend.position = "bottom")
@@ -206,7 +219,7 @@ p3<-ggplot(exp_meta,aes(x=UMAP1,y=UMAP2))+
   geom_point(color="grey",size=4)+
   new_scale("color")+
   geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7-.CD34+",],color="black",size=4)+
-  geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7-.CD34+",],aes(color=TMED1),size=3)+
+  geom_point(data=exp_meta[exp_meta$time_cell=="Dx_CD7-.CD34+",],aes(color=RPS6),size=3)+
   scale_color_gradient(low="white",high="red")+
   theme_bw()+
   theme(legend.position = "bottom")
