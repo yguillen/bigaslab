@@ -1930,7 +1930,7 @@ patinfo$lef_exp_prob2<-as.numeric(patinfo$lef_exp_prob2)
 
 patinfo<-patinfo[,-2]
 
-ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = median),y=scale(lef_exp_prob1)))+
+ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = median),y=scale(bcat_exp_prob1)))+
 #ggplot(patinfo,aes(x=Outcome,y=scale(bcat_exp_prob1)))+
   geom_point(aes(color=Outcome),size=5)+
   geom_boxplot(alpha=0.2,lwd=1)+
@@ -1947,8 +1947,9 @@ ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = me
 
 
 kruskal.test(as.factor(patinfo$cluster),patinfo$bcat_exp_prob1)
+
 my_comparisons <- list( c("1", "2"), c("1", "3"), c("2", "3"),c("1","4"),c("1","3") )
-ggboxplot(patinfo, x = "cluster", y = "bcat_exp_prob1",color="cluster", palette = "jco")+
+ggboxplot(patinfo, x = "cluster", y = "tcf_exp_prob1",color="cluster", palette = "jco")+
   stat_compare_means(comparisons = my_comparisons)+
   stat_compare_means(method="anova")
 
@@ -2070,6 +2071,24 @@ ggsurvplot(surv_C_fit_TALL, data = pheno_2_pat,
            font.x = c(20),
            font.y = c(20))
 
+
+# HR
+pheno_2_pat$Age_hr<-ifelse(pheno_2_pat$Age<10,"<10",">10")
+table(pheno_2_pat$CNS_Status)
+
+pheno_2_pat$newcluster<-as.factor(pheno_2_pat$newcluster)
+pheno_2_pat$newcluster <- factor(pheno_2_pat$newcluster, levels = c("3","24","1"))
+pheno_2_pat$cluster<-as.factor(pheno_2_pat$cluster)
+pheno_2_pat$cluster <- factor(pheno_2_pat$cluster, levels = c("3","2","4","1"))
+#pheno_2_pat$CNS_Status <- factor(pheno_2_pat$CNS_Status, levels = c("CNS 1","CNS 2","CNS 3","Bloody tap, blasts","No data"))
+pheno_2_pat$Pheno_ETP<-ifelse(pheno_2_pat$Pheno=="ETP","ETP","nonETP")
+pheno_2_pat$Pheno_ETP <- factor(pheno_2_pat$Pheno_ETP, levels = c("nonETP","ETP"))
+
+fit.coxph<- coxph(Surv(EFS_yrs, Event) ~ newcluster+Gender+Age_hr+CNS_Status+Pheno_ETP,
+                  data = pheno_2_pat[pheno_2_pat$CNS_Status!="No data" & !is.na(pheno_2_pat$Pheno),],
+                  ties = 'exact')
+summary(fit.coxph)
+ggforest(fit.coxph)
 
 ## Functional enrichment enrichr web cluster genes
 cluster1_BP<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/BP_Enrichment/GO_Biological_Process_cluster1.txt')
