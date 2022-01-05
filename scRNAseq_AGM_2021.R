@@ -34,7 +34,9 @@ library(pheatmap)
 set.seed(100)
 
 #setwd("/Volumes/cancer/Rosh_scRNA/htseq/")
-setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
+
+#setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
+setwd("/Volumes/grcmc/YGUILLEN/scRNA_Roshana_MCR/all_scRNA_2021/cellbrowser_output/")
 
 ##### importing counts for cyclone ####
 
@@ -109,7 +111,7 @@ cell_metadata$Position<-toupper(cell_metadata$Position)
 cell_metadata$Position<-gsub('PLATE','Plate',cell_metadata$Position)
 
 # FACS
-restGL<-read.delim('/Volumes/cancer/Rosh_scRNA/scanpy/FACS_data/all_plates.csv',header = TRUE)
+restGL<-read.delim('/Volumes/cancer/Rosh_scRNA/scanpy/FACS_data/all_plates.csv',header = TRUE,sep=",")
 colnames(restGL)[1]<-"Position"
 restGL<-restGL[,c(1,4:14)]
 restGL<-restGL[restGL$Position!="",]
@@ -135,8 +137,8 @@ write.table(facsindex_g,'/Volumes/cancer/Rosh_scRNA/scanpy/FACS_data/metadata_fa
 
 ### SCANPY RESULTS WITH ALL CELLS
 #setwd("/Volumes/grcmc/YGUILLEN/scRNA_cam/scanpy_run/cellbrowser_output/")
-setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
-
+#setwd("/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/all_scRNA_2021/cellbrowser_output/")
+setwd("/Volumes/grcmc/YGUILLEN/scRNA_Roshana_MCR/all_scRNA_2021/cellbrowser_output/")
 
 UMAPsc<-read.delim("umap_coords.tsv")
 colnames(UMAPsc)<-c("sampleID","UMAP_C1","UMAP_C2")
@@ -216,8 +218,8 @@ UMAPpop<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   geom_point(color="black",size=4)+
   geom_point(aes(color=Population),size=3)+
   scale_color_brewer(palette="Paired")+
-#  scale_color_manual(values=c("cyan","red","darkolivegreen"))+
-#  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
+  #  scale_color_manual(values=c("cyan","red","darkolivegreen"))+
+  #  geom_label_repel(data=subset(scanpy,(scanpy$UMAP_C1<(-10) & scanpy$UMAP_C2>7.5)),aes(label=sampleID),size=3,alpha=0.5)+
   theme_bw()+
   theme(legend.position = "bottom")
 
@@ -298,7 +300,7 @@ ggsave(p1,filename = "../plots/Hey2.pdf")
 p2<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],color="black",size=4)+
   geom_point(color="white",size=3)+
-#  geom_point(aes(color=Notch1),size=3)+
+  #  geom_point(aes(color=Notch1),size=3)+
   geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],aes(color=NOTCH2),size=3)+
   #  geom_point(aes(color=Dll4),size=3)+
   #  scale_color_gradient(low="white",high="red")+
@@ -330,19 +332,19 @@ paletteLength<-length(cols)
 
 #breaks
 breaks<-c(seq(min(scanpy[ !is.na(scanpy$JAG1) & (scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2" ),]$NOTCH2),
-      -250,
-      length.out=round(ceiling(paletteLength*0.40))), 
-  seq(-249,200,length.out=round(ceiling(paletteLength*0.40))),
-  seq(201, max(scanpy[ !is.na(scanpy$JAG1) & (scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2" ),]$NOTCH2), length.out=round(floor(paletteLength*0.20))))
+              -250,
+              length.out=round(ceiling(paletteLength*0.40))), 
+          seq(-249,200,length.out=round(ceiling(paletteLength*0.40))),
+          seq(201, max(scanpy[ !is.na(scanpy$JAG1) & (scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2" ),]$NOTCH2), length.out=round(floor(paletteLength*0.20))))
 
 p3<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],color="black",size=4)+
   geom_point(color="white",size=3)+
   geom_point(data=scanpy[(scanpy$Louvain_cluster=="4" | scanpy$Louvain_cluster=="2"),],aes(color=NOTCH2),size=3)+
-#  geom_point(aes(color=Dll4),size=3)+
-#  scale_color_gradient(low="white",high="red")+
-#  scale_color_gradientn(colors=rev(cols), 
-#                        breaks = breaks)+
+  #  geom_point(aes(color=Dll4),size=3)+
+  #  scale_color_gradient(low="white",high="red")+
+  #  scale_color_gradientn(colors=rev(cols), 
+  #                        breaks = breaks)+
   scale_color_gradient2(low="white",mid = "white",high="red", 
                         breaks = breaks)+
   theme_bw()+
@@ -359,10 +361,10 @@ p4<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   #  geom_point(aes(color=Notch1),size=3)+
   geom_point(data=scanpy[(scanpy$Louvain_cluster=="4"),],aes(color=Gapdh),size=3)+
   #  geom_point(aes(color=Dll4),size=3)+
-    scale_color_gradient(low="white",high="red")+
+  scale_color_gradient(low="white",high="red")+
   #  scale_color_gradientn(colors=rev(cols), 
   #                        breaks = breaks)+
-#  scale_color_brewer(palette = "Spectral")+
+  #  scale_color_brewer(palette = "Spectral")+
   theme_bw()+
   theme(legend.position = "bottom")
 p4
@@ -463,16 +465,16 @@ write.table(clust5mat,"/Users/yolanda_guillen/Desktop/IMIM/scRNA_cam/Roshana_scR
 # Threshold for Notch1 and Notch2 markers according to gating strategy
 
 scanpy$th_NOTCH1<-ifelse(scanpy$Notch1<500,
-                        c("neg_NOTCH1"),c("pos_NOTCH1"))
+                         c("neg_NOTCH1"),c("pos_NOTCH1"))
 
 scanpy$th_NOTCH2<-ifelse(scanpy$Notch2<200,
                          c("neg_NOTCH2"),c("pos_NOTCH2"))
 
 scanpy$th_JAG1<-ifelse(scanpy$Jag1<11000,
-                         c("neg_JAG1"),c("pos_JAG1"))
+                       c("neg_JAG1"),c("pos_JAG1"))
 
 scanpy$th_DLL4<-ifelse(scanpy$Dll4<120,
-                         c("neg_DLL4"),c("pos_DLL4"))
+                       c("neg_DLL4"),c("pos_DLL4"))
 
 scanpy$th_GFI1<-ifelse(scanpy$Gfi1<270,
                        c("neg_GFI1"),c("pos_GFI1"))
@@ -551,8 +553,8 @@ facs<-ggplot(scanpy,aes(x=cKIT,y=Gfi1))+
                    data=(scanpy[scanpy$th_NOTCH2=="pos_NOTCH2",]))+
   scale_color_brewer(palette = "Spectral")+
   ggtitle("Notch2 positive cells")
-  #ylim(c(-1800,10000))
-  #xlim(c(-1100,10000))
+#ylim(c(-1800,10000))
+#xlim(c(-1100,10000))
 facs
 
 
@@ -620,10 +622,10 @@ facsnotchpop<-ggplot(scanpy,aes(x=Notch2,y=Notch1))+
   geom_hline(yintercept = 500,linetype="dashed")+
   theme_bw()+
   theme(legend.position = "left",legend.title = element_blank())
-  #xlim(c(NA,10000))+
-  #scale_x_continuous(trans='log10') +
-  #ylim(c(NA,10000))+
-  #scale_y_continuous(trans='log10')
+#xlim(c(NA,10000))+
+#scale_x_continuous(trans='log10') +
+#ylim(c(NA,10000))+
+#scale_y_continuous(trans='log10')
 
 facsnotchpop
 
@@ -777,7 +779,7 @@ ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2))+
   geom_point(data=scanpy[scanpy$th_NOTCH1=="pos_NOTCH1" & scanpy$th_JAG1=="pos_JAG1",],color="red",alpha=1,size=4)+
   geom_point(data=scanpy[scanpy$th_NOTCH1=="pos_NOTCH1" & scanpy$th_DLL4=="pos_DLL4",],color="dodgerblue",alpha=1,size=3)+
   #scale_colour_gradient(low = "white", high = "red")+
- # scale_colour_manual(values=c("coral","dodgerblue"))+
+  # scale_colour_manual(values=c("coral","dodgerblue"))+
   theme_bw()+
   theme(legend.position = "bottom")
 
@@ -1037,7 +1039,7 @@ p5_net<-network_plot(tabcor_5,min_cor = 0.3,legend = FALSE)
 
 
 grid.arrange(p0_net,p1_net,p2_net,p3_net,p4_net,p5_net)
- 
+
 # Correlation markers and genes across clusters
 #####
 
@@ -1306,8 +1308,8 @@ row.names(scanpy_mark_genes)<-scanpy_mark_genes$Row.names
 scanpy_mark_genes$Row.names<-NULL
 
 auto<-autoplot(prcomp(markall,scale=TRUE), data = markall,
-         loadings = TRUE, loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3)
+               loadings = TRUE, loadings.colour = 'blue',
+               loadings.label = TRUE, loadings.label.size = 3)
 auto+theme_bw()
 
 # 2D PLOT
@@ -1425,7 +1427,7 @@ genemarkall$Louvain_cluster<-as.factor(genemarkall$Louvain_cluster)
 row.names(genemarkall)<-gsub('_.*','',row.names(genemarkall))
 
 heatmaply(genemarkall,
-               plot_method = "plotly",
+          plot_method = "plotly",
           scale="column")
 
 
@@ -1988,7 +1990,7 @@ pNOTCH1<-ggplot(preHSCclas_sub,aes(x=group,y=Notch1))+
   theme(legend.position = "bottom")+
   ggtitle("NOTCH1")
 
-  
+
 notch1clust<-ggplot(preHSCclas,aes(x=as.factor(Louvain_cluster),y=Notch1))+
   geom_point(color="black",size=3)+
   geom_point(aes(color=as.factor(Louvain_cluster)))+
@@ -2563,8 +2565,8 @@ Clust5_Notch<-ggplot(scanpy,aes(x=UMAP_C1,y=UMAP_C2,labels=sampleID))+
   geom_point(data=scanpy[scanpy$Louvain_cluster=="5",],aes(color=Notch1),size=4)+
   #scale_color_brewer(palette="Spectral")+
   scale_color_gradient2(low = "lightyellow", mid = "lightyellow", high ="red2", 
-                       midpoint = Notch1med,
-                       breaks=seq(Notch1min,Notch1max,(Notch1max-Notch1min)/4),na.value = "gray97")+
+                        midpoint = Notch1med,
+                        breaks=seq(Notch1min,Notch1max,(Notch1max-Notch1min)/4),na.value = "gray97")+
   theme_dark()+
   labs(title = "Cluster 5",
        subtitle = "NOTCH1 protein")+
@@ -2946,8 +2948,8 @@ a<-ggplot(ttime,aes(x=UMAP_C1,y=UMAP_C2))+
   #geom_point(color="white",size=5)+
   geom_point(aes(color=Jag1,group = population),size=5)+
   scale_color_gradient2(low = "white", mid = "lightyellow", high ="red2", na.value = "grey",
-                       midpoint = Jag1med,
-                       breaks=seq(Jag1min,Jag1max,(Jag1max-Jag1min)/4))+
+                        midpoint = Jag1med,
+                        breaks=seq(Jag1min,Jag1max,(Jag1max-Jag1min)/4))+
   theme_dark()+
   theme(legend.position = "bottom",plot.title = element_text(size = 12, face = "bold"))+
   transition_time(dpt_pseudotime)+
@@ -3006,7 +3008,7 @@ newpst<-subset(scanpy,select=c(population,Jag1,Notch1))
 summary(newpst$Jag1)
 
 newpst$orig<-ifelse(newpst$Jag1>11000 & newpst$population=="Gfi1_HE",
-                         c("orig"),c("unknown"))
+                    c("orig"),c("unknown"))
 
 
 #merge with original number of cells
@@ -3026,7 +3028,7 @@ write.table(newpst,"/Users/yguillen/Desktop/temp/scRNA_cam/scanpy_run/metadata_o
 preHSCclas$preHSC
 newpstCD45<-subset(preHSCclas,select=c(sampleID,preHSC))
 newpstCD45$orig45<-ifelse(preHSCclas$preHSC=="T2",
-                    c("orig45"),c("unknown"))
+                          c("orig45"),c("unknown"))
 
 table(newpstCD45$orig45)
 
@@ -3219,20 +3221,20 @@ D4rib<-ggplot(dentime,aes(x=dpt_CD45_T2,y=Dll4.x))+
   theme(legend.position = "bottom")
 
 dentime_phase<-subset(dentime,select=c(dpt_CD45_T2,Louvain_cluster,cycle,
-#                                       Jag1.x,Notch1.x,
-#                                       Notch2.x,Dll4.x,
-#                                       CD45,
+                                       #                                       Jag1.x,Notch1.x,
+                                       #                                       Notch2.x,Dll4.x,
+                                       #                                       CD45,
                                        Jag1.y,Notch1.y,
-#                                       Notch2.y,Dll4.y,
-#                                      Ptprc,
+                                       #                                       Notch2.y,Dll4.y,
+                                       #                                      Ptprc,
                                        Gata2,Hes1,Hey1,Hey2,Hist1h1b))
 dentime_phase_melt<-melt(dentime_phase,id.vars = c("dpt_CD45_T2","Louvain_cluster","cycle"))
 
 genesel<-c("Jag1.x","Jag1.y",
-"Notch1.x","Notch1.y",
-"Notch2.x","Notch1.y",
-"Dll4.x","Dll4.y",
-"Gata2","Hes1","Hey1","Hey2","Ptprc","Hist1h1b")
+           "Notch1.x","Notch1.y",
+           "Notch2.x","Notch1.y",
+           "Dll4.x","Dll4.y",
+           "Gata2","Hes1","Hey1","Hey2","Ptprc","Hist1h1b")
 
 # No bins
 ggplot(dentime_phase_melt[!is.na(dentime_phase_melt$value),],aes(x=1-dpt_CD45_T2,y=value,group=as.factor(Louvain_cluster)))+
@@ -3241,12 +3243,12 @@ ggplot(dentime_phase_melt[!is.na(dentime_phase_melt$value),],aes(x=1-dpt_CD45_T2
   ggnewscale::new_scale_color()+
   geom_point(aes(color=as.factor(Louvain_cluster),shape=cycle),size=2,alpha=0.8)+
   scale_color_brewer(palette="Spectral")+
-#  geom_hline(data=dentime_phase_melt[!is.na(dentime_phase_melt$value) & dentime_phase_melt$variable=="Jag1.x",],aes(yintercept = 7500),color="red",size=1.5,linetype="dotted")+
+  #  geom_hline(data=dentime_phase_melt[!is.na(dentime_phase_melt$value) & dentime_phase_melt$variable=="Jag1.x",],aes(yintercept = 7500),color="red",size=1.5,linetype="dotted")+
   geom_hline(data=dentime_phase_melt[!is.na(dentime_phase_melt$value) & dentime_phase_melt$variable!="Jag1.x",],aes(yintercept = 1),color="red",size=1.5,linetype="dotted")+
   #geom_ribbon(aes(ymin=0, ymax=value,group=variable,color=variable,fill=variable),alpha=0)+
   #geom_density(aes(color=as.factor(Louvain_cluster)),size=1)+
   facet_wrap(variable~cycle,ncol=3,scales="free")+
-#  geom_hline(aes(yintercept = 10000))+
+  #  geom_hline(aes(yintercept = 10000))+
   theme_bw()+
   theme(legend.position = "bottom")
 
@@ -3278,8 +3280,8 @@ library(scales)
 
 ggplot(bintime[!is.na(bintime$value_median),],aes(x=1-dpt_CD45_T2,y=value_median,group=as.factor(Louvain_cluster)))+
   geom_line(aes(color=as.factor(Louvain_cluster)),na.rm = TRUE,size=1)+
-#  scale_color_brewer(palette="Set2")+
-#  ggnewscale::new_scale_color()+
+  #  scale_color_brewer(palette="Set2")+
+  #  ggnewscale::new_scale_color()+
   geom_point(na.rm = TRUE,color="black",size=3)+
   geom_point(na.rm = TRUE,aes(color=as.factor(Louvain_cluster)),size=2)+
   #geom_ribbon(aes(ymin=0, ymax=value,group=variable,color=variable,fill=variable),alpha=0)+
@@ -3554,10 +3556,9 @@ row.names(my_sample_col) <- colnames(heatmark_norm)
 pheatmap(heatmark_norm,
          annotation_col = my_sample_col,
          cutree_rows = 4,
-       #  cutree_cols = 6,
+         #  cutree_cols = 6,
          fontsize =4,
          Colv=FALSE,
          dendrogram="row",
          show_colnames = FALSE)
-
 
