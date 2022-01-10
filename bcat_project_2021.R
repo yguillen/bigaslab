@@ -2191,20 +2191,24 @@ metadata_ssbcat$cluster3<-as.numeric(metadata_ssbcat$cluster3)
 
 cohorts<-c("TARGET","EGA_R","EGA_TLE")
 cohorts<-c("TARGET")
+cohorts<-c("EGA_R","EGA_TLE")
 
 metadata_ssbcat<-subset(metadata_ssbcat,(metadata_ssbcat$First_event!="Second Malignant Neoplasm" & 
                                            metadata_ssbcat$First_event!="Secondary leukemia" &
                                            metadata_ssbcat$First_event!="Disease"))
 
-
+summary(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ]$cluster1)
+boxplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ]$cluster1)
 
 ggplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ],aes(x=cluster1,y=cluster3))+
   geom_point(data=metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],color="black",size=3)+
   geom_point(data=metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts,],aes(color=First_event),size=2.5)+
-  scale_color_manual(values=c("red","grey","darkolivegreen","green"))+
+  scale_color_manual(values=c("red","grey","darkolivegreen","green","orange"))+
 #  geom_density_2d(data=metadata_ssbcat[metadata_ssbcat$First_event!="Remission",],color="darkolivegreen",bins=20)+
-  geom_vline(xintercept = 140,linetype="dashed")+
-  geom_vline(xintercept = 100,linetype="dashed")+
+#  geom_vline(xintercept = 130,linetype="dashed")+
+#  geom_vline(xintercept = 100,linetype="dashed")+
+  geom_vline(xintercept = 93,linetype="dashed")+
+  geom_vline(xintercept = 115,linetype="dashed")+
   theme_bw()+
   theme(legend.position="bottom",
         legend.text = element_text(size=12),
@@ -2221,6 +2225,7 @@ boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$Firs
 clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
       data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
       data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
+
 
 
 ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_exp_EGA))+
