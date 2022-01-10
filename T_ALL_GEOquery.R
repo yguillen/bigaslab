@@ -1717,8 +1717,6 @@ phet<-pheatmap(as.data.frame(t(scale(t(bcat_sig)))),
              breaks=myBreaks)
 
 
-
-
 clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=5)))
 patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=5)))
 
@@ -1790,8 +1788,23 @@ ggplot(prop_clust1,aes(x=cluster,y=Proportion,fill=First_event))+
         axis.text.y = element_blank(),
         axis.title.y = element_text(size=16))
 
+# output for ssGSEA microarrays no survival data bcat targets
+ssGSEA_mic2<-as.data.frame(t(merge(annot_col,(t(bcat_sig)),by="row.names")))
+colnames(ssGSEA_mic2)<-ssGSEA_mic2[1,]
+ssGSEA_mic2<-ssGSEA_mic2[7:nrow(ssGSEA_mic2),]
+ssGSEA_mic2$Description<-'NA'
+ssGSEA_mic2<-ssGSEA_mic2[,c(ncol(ssGSEA_mic2),1:(ncol(ssGSEA_mic2)-1))]
+dim(ssGSEA_mic2)
 
-### pheno data survival for _2
+matches <- grep(paste(clusters$Gene,collapse="|"), 
+                        row.names(ssGSEA_mic2), value=TRUE)
+
+write.table(ssGSEA_mic2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/ggsea_bcatexp_targets_microarray_nosurvival.gct",sep="\t",row.names=TRUE,quote = FALSE)
+
+
+
+
+### pheno data survival for _2.
 survival_GSE14618<-data.frame(read_excel("../GSE14618/survival_GSE14618.xlsx"))
 survival_GSE14618<-survival_GSE14618[survival_GSE14618$GEO_Array_ID!="ND",]
 row.names(survival_GSE14618)<-survival_GSE14618$GEO_Array_ID
@@ -1885,6 +1898,9 @@ write.table(tclust2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_ge
 tclust3<-rbind(as.data.frame(t(clusters[clusters$cluster==3,])))
 tclust3<-cbind("cluster3","na",tclust3[-1,])
 write.table(tclust3,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster3.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+
+# Expression dataset
+
 
 
 # Order genes (clusters)
