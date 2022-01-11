@@ -2164,10 +2164,10 @@ ggplot(prop_clust,aes(x=cluster,y=Proportion,fill=First_event))+
 
 ## Read ssGSEA from b-cat signature
 #UP AND DOWN SEPARATE all genes
-ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_ALL.gct")
+#ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_ALL.gct")
 
 #UP AND DOWN SEPARATE excluding SAP18,HLA-DOA and KRT5
-ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_reduced.gct")
+#ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/ssGSEA_output/TALL_reduced.gct")
 
 #clusters unsupervised microarrays in all TARGETs
 ssbcat<-read.delim("/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/TALL_bcat.gct")
@@ -2217,16 +2217,18 @@ ggplot(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ],aes(x=cluster1,y=cl
         axis.title.y = element_text(size=16))+
   coord_fixed(ratio=1)
 
-
+cor.test(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ]$cluster1,metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ]$cluster3)
 
 boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1>130,]$bcat_exp_EGA)
 boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1<130,]$bcat_exp_EGA)
 
-clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
-      data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
-      data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
+#clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
+#      data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
+#      data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
 
-
+clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>115,]),
+                   data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<93,]),
+                   data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<115 & metadata_ssbcat$cluster1>93,]))
 
 ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_exp_EGA))+
   geom_jitter(data=clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),size=3)+
@@ -2241,6 +2243,24 @@ ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_ex
         axis.title.y = element_text(size=16))
 
 kruskal.test(clust1_clas$bcat_exp_EGA,clust1_clas$cluster1_lev)
+
+
+prop_clust<-data.frame(prop.table(table(clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts, ]$cluster1_lev,clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,]$First_event),1))
+colnames(prop_clust)<-c("group","First_event","Proportion")
+prop_clust$group<-as.factor(prop_clust$group)
+
+prop_clust$group<- factor(prop_clust$group, levels=c("highest","medium","lowest"))
+
+ggplot(prop_clust,aes(x=group,y=Proportion,fill=First_event))+
+  geom_col(color="black")+
+  scale_fill_manual(values=c("dodgerblue","green","darkolivegreen","cyan"))+
+  theme_bw()+
+  theme(legend.position="right",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
 
 
 library(survminer)
