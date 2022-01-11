@@ -92,6 +92,8 @@ metadata$Pheno_WT1<-as.factor(metadata$Pheno_WT1)
 
 metadata$WT1mut<-ifelse(metadata$WT1>0,"WT1_mut","no_WT1_mut")
 
+write.table(metadata,'/Volumes/cancer/CEBPA/results/metadata_all_RNAseq.txt',row.names = FALSE,quote = FALSE,sep="\t")
+
 # DESeq tables for all samples
 
 DESeq2Table <- DESeqDataSetFromHTSeqCount(sampleTable = metadata,
@@ -114,8 +116,7 @@ mcols(rowData(DESeq2Table))
 
 # Add additional annotation information using biomaRt
 ensembl<-useEnsembl(biomart="ENSEMBL_MART_ENSEMBL", 
-                 dataset="hsapiens_gene_ensembl",
-                 mirror="asia")
+                 dataset="hsapiens_gene_ensembl")
 
 bm <- getBM(attributes=c("ensembl_gene_id", "description","external_gene_name","gene_biotype","chromosome_name"),
             values= rownames(DESeq2Table),
@@ -201,7 +202,7 @@ write.table(genetab,"../results/norm_exp_symbol_CEBPA.tab",sep="\t",quote = FALS
 #####
 
 ## Create PCA
-pcaData <- plotPCA(rld, intgroup=c("Pheno_WT1"), returnData=TRUE)
+pcaData <- plotPCA(rld, intgroup=c("Pheno_WT1","Pheno"), returnData=TRUE)
 
 pcaData <- plotPCA(rld, intgroup=c("WT1mut","Positivity"), returnData=TRUE)
 
@@ -211,7 +212,7 @@ percentVar <- round(100 * attr(pcaData, "percentVar"))
 
 ggplot(pcaData, aes(x=PC1, y=PC2,label=name)) +
   geom_point(color="black",size=10,alpha=0.3) +
-  geom_point(aes(color=WT1mut),size=8,alpha=0.8) +
+  geom_point(aes(color=Pheno),size=8,alpha=0.8) +
   geom_label_repel(aes(label=name), size=3,fontface = "italic",alpha=0.5)+
 #  stat_ellipse(aes(color=Pheno),level=0.8)+
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
@@ -370,7 +371,7 @@ p1<-pheatmap(t(df[,c(54:ncol(df))]),
          show_rownames = F,
          fontsize = 6,
          cutree_cols = 4,
-         cutree_rows = 8,
+         cutree_rows = 10,
          color=cols)
 
 p2<-pheatmap(t(df[,c(54:ncol(df))]),
@@ -379,12 +380,12 @@ p2<-pheatmap(t(df[,c(54:ncol(df))]),
              show_rownames = F,
              fontsize = 6,
              cutree_cols = 4,
-             cutree_rows = 8,
+             cutree_rows = 10,
              color=cols)
 
 
 # Extract genes and patients clusters
-clusters<-data.frame(cluster=sort(cutree(p1$tree_row, k=8)))
+clusters<-data.frame(cluster=sort(cutree(p1$tree_row, k=10)))
 patients<-data.frame(cluster=sort(cutree(p1$tree_col, k=4)))
 
 # order genes in cluster
@@ -429,7 +430,8 @@ resultsNames(dds)
 rescondition<-results(dds)
 
 # Example plot counts
-plotCounts(dds, gene=which(rownames(rescondition)=="ENSG00000184557"), intgroup="WT1mut")
+#plotCounts(dds, gene=which(rownames(rescondition)=="ENSG00000184557"), intgroup="WT1mut")
+plotCounts(dds, gene=which(rownames(rescondition)=="ENSG00000184557"), intgroup="Pheno_WT1")
 
 head(rescondition)
 summary(rescondition)
@@ -447,7 +449,8 @@ table_degs$Row.names<-NULL
 table_upreg_padj01<-subset(table_degs,table_degs$padj<0.1 & table_degs$log2FoldChange>0)
 table_downreg_padj01<-subset(table_degs,table_degs$padj<0.1 & table_degs$log2FoldChange<0)
 
-
+write.table(table_degs,"/Volumes/grcmc/YGUILLEN/CEBPA/results/DEG_WTpheno.txt",quote = FALSE,sep="\t")
+write.table(table_degs,"/Volumes/grcmc/YGUILLEN/CEBPA/results/DEG_WT1_acute_pheno.txt",quote = FALSE,sep="\t")
 #write.table(table_degs,"/Users/yolanda_guillen/Desktop/IMIM/CEBPA/results/DEG_WTpheno.txt",quote = FALSE,sep="\t")
 #write.table(table_upreg_padj01,"/Users/yolanda_guillen/Desktop/IMIM/CEBPA/results/upregulated_WTpheno.txt",quote = FALSE,sep="\t")
 #write.table(table_downreg_padj01,"/Users/yolanda_guillen/Desktop/IMIM/CEBPA/results/downregulated_WTpheno.txt",quote = FALSE,sep="\t")
@@ -459,8 +462,8 @@ countab<-melt(countab)
 colnames(countab)<-c("Sample","Gene","value")
 countab<-merge(countab,bm,by.x="Gene",by.y="ensembl_gene_id")
 
-genesdown<-subset(table_degs,table_degs$pvalue<=0.01 & table_degs$log2FoldChange<0)
-genesup<-subset(table_degs,table_degs$pvalue<=0.01 & table_degs$log2FoldChange>0)
+genesdown<-subset(table_degs,table_degs$padj<=0.1 & table_degs$log2FoldChange<0)
+genesup<-subset(table_degs,table_degs$padj<=0.1 & table_degs$log2FoldChange>0)
 
 countab<-merge(metadata,countab,by="Sample")
 
@@ -489,9 +492,11 @@ matrix$deg<-ifelse(matrix$log2FoldChange<0,
                    'down','up')
 
 
-pheatmap(t(scale(t(matrix[,1:13]))),
-         annotation_col = as.data.frame(df[,c(which( colnames(df)==c("ENSG00000184937")),3,4,5,6,7:20,25,26)]),
-         annotation_row = matrix[,c(22,24)],
+pheatmap(t(scale(t(matrix[,1:11]))),
+#         annotation_col = as.data.frame(df[,c(which( colnames(df)==c("ENSG00000184937")),3,4,5,6,7:20,25,26)]),
+#         annotation_row = matrix[,c(22,24)],
+         annotation_col = as.data.frame(df[,c(which( colnames(df)==c("ENSG00000184937")),52,6,7,8,4)]),
+         annotation_row = matrix[,c(20,22)],
          show_colnames= T,
          show_rownames = F,
          fontsize = 6,
@@ -625,6 +630,7 @@ corout2<-as.data.frame(sapply(corout, "[[", "estimate"))
 corout<-cbind(corout1,corout2)
 names(corout)<-c("Pval","Rho")
 corout$Gene<-row.names(corout)
+
 #FOR GENETAB DATASET
 corout<-merge(gene_name,corout,by="Gene",all.y=TRUE)
 
@@ -633,6 +639,9 @@ corout_sig_ohsu<-corout_sig_ohsu[with(corout_sig_ohsu,order(corout_sig_ohsu$Pval
 
 corout_sig_Dx<-subset(corout,corout$Pval<0.01)
 corout_sig_Dx<-corout_sig_Dx[with(corout_sig_Dx,order(corout_sig_Dx$Pval, corout_sig_Dx$Rho)),]
+
+write.table(corout_sig_Dx,'/Volumes/grcmc/YGUILLEN/CEBPA/results/coexpression_Dx_WT1.txt',quote = FALSE,sep="\t")
+write.table(corout_sig_ohsu,'/Volumes/grcmc/YGUILLEN/CEBPA/results/coexpression_Ohsu_WT1.txt',quote = FALSE,sep="\t")
 
 
 # plots
