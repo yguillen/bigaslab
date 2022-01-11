@@ -1802,8 +1802,6 @@ matches <- grep(paste(clusters$Gene,collapse="|"),
 write.table(ssGSEA_mic2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/ggsea_bcatexp_targets_microarray_nosurvival.gct",sep="\t",row.names=TRUE,quote = FALSE)
 
 
-
-
 ### pheno data survival for _2.
 survival_GSE14618<-data.frame(read_excel("../GSE14618/survival_GSE14618.xlsx"))
 survival_GSE14618<-survival_GSE14618[survival_GSE14618$GEO_Array_ID!="ND",]
@@ -1898,9 +1896,6 @@ write.table(tclust2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_ge
 tclust3<-rbind(as.data.frame(t(clusters[clusters$cluster==3,])))
 tclust3<-cbind("cluster3","na",tclust3[-1,])
 write.table(tclust3,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster3.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
-
-# Expression dataset
-
 
 
 # Order genes (clusters)
@@ -2105,6 +2100,82 @@ fit.coxph<- coxph(Surv(EFS_yrs, Event) ~ newcluster+Gender+Age_hr+CNS_Status+Phe
                   ties = 'exact')
 summary(fit.coxph)
 ggforest(fit.coxph)
+
+
+### ssGSEA microarrays no survival data
+# with clusters from unsupervised microarrays in first cohort microarrays with survival data
+ssbcat_micro<-read.delim("/Volumes/grcmc/YGUILLEN/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/TALL_micro.gct")
+
+ssbcat_micro<-as.data.frame(t(ssbcat_micro))
+colnames(ssbcat_micro)<-ssbcat_micro[1,]
+ssbcat_micro<-ssbcat_micro[-c(1,2),]
+
+
+
+metadata_ssbcat_micro<-merge(ssbcat_micro,data.frame(row.names=row.names(pheno_GSE14618_gpl96),
+                                                     First_event=gsub(' \\(.*','',pheno_GSE14618_gpl96$description),
+                                                     bcat_exp=as.numeric(df_1$bcat_exp)),by=0,all.y=TRUE)
+row.names(metadata_ssbcat_micro)<-metadata_ssbcat_micro$Row.names
+metadata_ssbcat_micro$Row.names<-NULL
+
+metadata_ssbcat_micro$cluster1<-as.numeric(metadata_ssbcat_micro$cluster1)
+metadata_ssbcat_micro$cluster2<-as.numeric(metadata_ssbcat_micro$cluster2)
+metadata_ssbcat_micro$cluster3<-as.numeric(metadata_ssbcat_micro$cluster3)
+
+summary(metadata_ssbcat_micro$cluster1)
+boxplot(metadata_ssbcat_micro$cluster1)
+
+ggplot(metadata_ssbcat_micro,aes(x=cluster1,y=cluster3))+
+  geom_point(color="black",size=3)+
+  geom_point(aes(color=First_event),size=2.5)+
+  scale_color_manual(values=c("green","darkolivegreen","coral"))+
+  geom_vline(xintercept = 75,linetype="dashed")+
+  geom_vline(xintercept = 90,linetype="dashed")+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=12),
+        text = element_text(size=10),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16))+
+  coord_fixed(ratio=1)
+
+cor.test(metadata_ssbcat_micro$cluster1,metadata_ssbcat_micro$cluster3)
+
+clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat_micro[metadata_ssbcat_micro$cluster1>90,]),
+                   data.frame(cluster1_lev="lowest",metadata_ssbcat_micro[metadata_ssbcat_micro$cluster1<75,]),
+                   data.frame(cluster1_lev="medium",metadata_ssbcat_micro[metadata_ssbcat_micro$cluster1<90 & metadata_ssbcat_micro$cluster1>75,]))
+
+ggplot(clust1_clas,aes(x=cluster1_lev,y=bcat_exp))+
+  geom_jitter(aes(color=First_event),size=3)+
+  geom_boxplot(alpha=0.1)+
+  scale_color_manual(values=c("green","darkolivegreen","coral"))+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=9),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
+
+kruskal.test(clust1_clas$bcat_exp,clust1_clas$cluster1_lev)
+
+
+prop_clust<-data.frame(prop.table(table(clust1_clas$cluster1_lev,clust1_clas$First_event),1))
+colnames(prop_clust)<-c("group","First_event","Proportion")
+prop_clust$group<-as.factor(prop_clust$group)
+
+prop_clust$group<- factor(prop_clust$group, levels=c("highest","medium","lowest"))
+
+ggplot(prop_clust,aes(x=group,y=Proportion,fill=First_event))+
+  geom_col(color="black")+
+  scale_fill_manual(values=c("dodgerblue","green","darkolivegreen","cyan"))+
+  theme_bw()+
+  theme(legend.position="bottom",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=16,hjust=1),
+        axis.text.y = element_blank(),
+        axis.title.y = element_text(size=16))
 
 ## Functional enrichment enrichr web cluster genes
 cluster1_BP<-read.delim('/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/unsupervised/BP_Enrichment/GO_Biological_Process_cluster1.txt')
