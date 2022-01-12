@@ -3,7 +3,7 @@ Files and Scripts generated at Bigas lab (2018 - 2022)
 ### Yolanda Guillén January 2022
 
 
-## Description of scrips
+## Description of scrips <br/>
 ATACseq.R → Rbpj ATAC-Seq C.Ruiz<br/>
 ArrayLimma_Script.R → Analysis of microarrays b-cat/NICD mouse C. Gekas<br/>
 CEBPA_rnaseq.R → Bulk RNASeq CEBPA and WT1 AML samples P. Nomdedéu<br/>
