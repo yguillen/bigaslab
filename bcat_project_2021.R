@@ -1142,9 +1142,14 @@ dim(codata)
 #row.names(codata)<-codata$Row.names
 #codata$Row.names<-NULL
 codata$disease_free<-as.factor(codata$disease_free)
-
 table(codata$disease_free,codata$First_event)
 
+# January 2022
+# variable highest G1 (lowest G3), from analysis comparison with microarrays survival data
+clust1_clas[clust1_clas$cluster1_lev=="highest" & clust1_clas$GSEA=="TARGET",]$Row.names
+
+codata$G1group<-ifelse(row.names(codata) %in% clust1_clas[clust1_clas$cluster1_lev=="highest",]$Row.names,
+                       "highest","lowest")
 
 #make deseq object for disease free REMISSION vs RELAPSE TARGET
 TARGETCountTable <- DESeqDataSetFromMatrix(
@@ -1152,6 +1157,11 @@ TARGETCountTable <- DESeqDataSetFromMatrix(
   colData = codata,
   ~ disease_free)
 
+#make deseq object for G1 microarrays highest vs lowest
+TARGETCountTable <- DESeqDataSetFromMatrix(
+  countData=countdata[,colnames(countdata) %in% row.names(codata)],
+  colData = codata,
+  ~ G1group)
 
 colnames(TARGETCountTable)
 
@@ -1198,7 +1208,7 @@ resultsNames(dds)
 rescondition<-results(dds)
 
 # Example plot counts
-plotCounts(dds, gene=which(rownames(rescondition)=="ENSG00000165323"), intgroup="disease_free")
+plotCounts(dds, gene=which(rownames(rescondition)=="ENSG00000011143"), intgroup="G1group")
 
 head(rescondition)
 summary(rescondition)
@@ -1230,6 +1240,10 @@ countab$group<-ifelse(countab$First_event=="Progression" | countab$First_event==
 
 ## Differentially expressed genes relapse vs remission
 write.table(target_prog_degs,"/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/TARGET/supervised/DEGs_rem_relapse_TARGET.tsv",sep="\t",quote = FALSE,row.names = FALSE)
+
+## Differentially expressed genes G1 highest vs G1 lowest
+write.table(target_prog_degs,"/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/TARGET/supervised/DEGs_G1highest_G1lowest_TARGET.tsv",sep="\t",quote = FALSE,row.names = FALSE)
+
 
 target_prog_degs_sig<-(subset(target_prog_degs,target_prog_degs$pvalue<0.05))
 row.names(target_prog_degs_sig)<-target_prog_degs_sig$Row.names
@@ -2222,13 +2236,18 @@ cor.test(metadata_ssbcat[metadata_ssbcat$GSEA %in% cohorts , ]$cluster1,metadata
 boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1>130,]$bcat_exp_EGA)
 boxplot(metadata_ssbcat[metadata_ssbcat$First_event!="NA" & metadata_ssbcat$First_event!="Censored" & metadata_ssbcat$GSEA %in% cohorts & metadata_ssbcat$cluster1<130,]$bcat_exp_EGA)
 
-#clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
-#      data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
-#      data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
+clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>130,]),
+      data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<100,]),
+      data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<130 & metadata_ssbcat$cluster1>100,]))
 
-clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>115,]),
-                   data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<93,]),
-                   data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<115 & metadata_ssbcat$cluster1>93,]))
+#clust1_clas<-rbind(data.frame(cluster1_lev="highest",metadata_ssbcat[metadata_ssbcat$cluster1>115,]),
+#                   data.frame(cluster1_lev="lowest",metadata_ssbcat[metadata_ssbcat$cluster1<93,]),
+#                   data.frame(cluster1_lev="medium",metadata_ssbcat[metadata_ssbcat$cluster1<115 & metadata_ssbcat$cluster1>93,]))
+
+
+summary(clust1_clas[clust1_clas$cluster1_lev=="highest" & clust1_clas$GSEA %in% cohorts,]$Age_Dx_days/365)
+sd(clust1_clas[clust1_clas$cluster1_lev=="highest" & clust1_clas$GSEA %in% cohorts,]$Age_Dx_days/365)
+table(clust1_clas[clust1_clas$cluster1_lev=="highest" & clust1_clas$GSEA %in% cohorts,]$Pheno)
 
 ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_exp_EGA))+
   geom_jitter(data=clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,],aes(color=First_event,shape=GSEA),size=3)+
@@ -2242,7 +2261,7 @@ ggplot(clust1_clas[clust1_clas$GSEA %in% cohorts, ],aes(x=cluster1_lev,y=bcat_ex
         axis.text.y = element_blank(),
         axis.title.y = element_text(size=16))
 
-kruskal.test(clust1_clas$bcat_exp_EGA,clust1_clas$cluster1_lev)
+kruskal.test(clust1_clas[clust1_clas$GSEA %in% cohorts,]$bcat_exp_EGA,clust1_clas[clust1_clas$GSEA %in% cohorts,]$cluster1_lev)
 
 
 prop_clust<-data.frame(prop.table(table(clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts, ]$cluster1_lev,clust1_clas[!is.na(clust1_clas$First_event) & clust1_clas$First_event!="Censored" & clust1_clas$GSEA %in% cohorts,]$First_event),1))
