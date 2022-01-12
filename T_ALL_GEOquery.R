@@ -2160,6 +2160,8 @@ ggplot(clust1_clas,aes(x=cluster1_lev,y=bcat_exp))+
 kruskal.test(clust1_clas$bcat_exp,clust1_clas$cluster1_lev)
 
 
+
+
 prop_clust<-data.frame(prop.table(table(clust1_clas$cluster1_lev,clust1_clas$First_event),1))
 colnames(prop_clust)<-c("group","First_event","Proportion")
 prop_clust$group<-as.factor(prop_clust$group)
