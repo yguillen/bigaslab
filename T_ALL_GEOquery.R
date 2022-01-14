@@ -1613,11 +1613,11 @@ bcat_att<-getBM(attributes = c("external_gene_name",'hgnc_symbol', 'chromosome_n
       mart = hg)
 
 
-bcat_sig1<-filter(expannot_GSE14618_1, grepl(paste0(bcat_pattern,'\\>',collapse = '|'),symbol))
+bcat_sig1<-filter(expannot_GSE14618_1, grepl(paste0('^',bcat_pattern,'\\>','$',collapse = '|'),symbol))
 bcat_sig2<-filter(expannot_GSE14618_1, grepl(paste0(setdiff(bcat_pattern,bcat_sig1$symbol),' ',collapse = '|'),symbol))
 bcat_sig3<-filter(expannot_GSE14618_1, grepl(paste0(' ',setdiff(bcat_pattern,bcat_sig1$symbol),collapse = '|'),symbol))
 
-bcat_sig4<-filter(expannot_GSE14618_2, grepl(paste0(bcat_pattern,'\\>',collapse = '|'),symbol))
+bcat_sig4<-filter(expannot_GSE14618_2, grepl(paste0('^',bcat_pattern,'\\>','$',collapse = '|'),symbol))
 #bcat_sig5<-filter(expannot_GSE14618_2, grepl(paste0(setdiff(bcat_pattern,bcat_sig4$symbol),' ',collapse = '|'),symbol))
 #bcat_sig6<-filter(expannot_GSE14618_2, grepl(paste0(' ',setdiff(bcat_pattern,bcat_sig4$symbol),collapse = '|'),symbol))
 
@@ -1661,7 +1661,7 @@ df_1<-as.data.frame(t(Reduce(function(x, y) merge(x, y, all=TRUE), list(df1, df2
 df_1<-df_1[-c(1:2),]
 colnames(df_1)<-df_1[1,]
 df_1<-df_1[-1,]
-colnames(df_1)
+colnames(df_1)<-c("bcat_exp","brca1_exp_prob1","brca1_exp_prob2","kaiso_exp")
 
 # BRCA2, bcat and KAISO levels in _2
 ctnnb1_exp2<-grepl('CTNNB1',expannot_GSE14618_2$symbol)
@@ -1707,18 +1707,18 @@ phet<-pheatmap(as.data.frame(t(scale(t(bcat_sig)))),
                                       #     brca1_exp_prob1=as.numeric(df_1[,3]),
                                       #     brca1_exp_prob2=as.numeric(df_1[,2]),
                                       #     kaiso_exp=as.numeric(df_1$kaiso_exp)),
-               annotation_row = ,
+        #       annotation_row = ,
                show_colnames=F,
                show_rownames = F,
                fontsize = 6,
-               cutree_cols = 5,
+               cutree_cols = 4,
                cutree_rows = 5,
                color=cols,
              breaks=myBreaks)
 
 
 clusters<-data.frame(cluster=sort(cutree(phet$tree_row, k=5)))
-patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=5)))
+patients<-data.frame(cluster=sort(cutree(phet$tree_col, k=4)))
 
 
 
@@ -1799,11 +1799,11 @@ dim(ssGSEA_mic2)
 matches <- grep(paste(clusters$Gene,collapse="|"), 
                         row.names(ssGSEA_mic2), value=TRUE)
 
-write.table(ssGSEA_mic2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/ggsea_bcatexp_targets_microarray_nosurvival.gct",sep="\t",row.names=TRUE,quote = FALSE)
+write.table(ssGSEA_mic2,"/Volumes/grcmc/YGUILLEN/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/ggsea_bcatexp_targets_microarray_nosurvival.gct",sep="\t",row.names=TRUE,quote = FALSE)
 
 
 ### pheno data survival for _2.
-survival_GSE14618<-data.frame(read_excel("../GSE14618/survival_GSE14618.xlsx"))
+survival_GSE14618<-data.frame(read_excel("/Volumes/grcmc/YGUILLEN/beta_catenin_project/TALL_bcatenin_data/GEO_Expression/GSE14618/survival_GSE14618.xlsx"))
 survival_GSE14618<-survival_GSE14618[survival_GSE14618$GEO_Array_ID!="ND",]
 row.names(survival_GSE14618)<-survival_GSE14618$GEO_Array_ID
 
@@ -1887,15 +1887,15 @@ clusters_micro_uns<-clusters
 #for ggsea
 tclust1<-rbind(as.data.frame(t(clusters[clusters$cluster==1,])))
 tclust1<-cbind("cluster1","na",tclust1[-1,])
-write.table(tclust1,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster1.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+write.table(tclust1,"/Volumes/grcmc/YGUILLEN/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster1.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
 
 tclust2<-rbind(as.data.frame(t(clusters[clusters$cluster==2,])))
 tclust2<-cbind("cluster2","na",tclust2[-1,])
-write.table(tclust2,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster2.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+write.table(tclust2,"/Volumes/grcmc/YGUILLEN/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster2.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
 
 tclust3<-rbind(as.data.frame(t(clusters[clusters$cluster==3,])))
 tclust3<-cbind("cluster3","na",tclust3[-1,])
-write.table(tclust3,"/Users/yguillen/Desktop/temp/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster3.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
+write.table(tclust3,"/Volumes/grcmc/YGUILLEN/beta_catenin_project/ssGSEA_genepattern/unsupervised_microarrays_to_TARGET/cluster3.txt",row.names = FALSE,quote = FALSE, col.names = FALSE,sep="\t")
 
 
 # Order genes (clusters)
@@ -1941,7 +1941,7 @@ patinfo$lef_exp_prob2<-as.numeric(patinfo$lef_exp_prob2)
 
 patinfo<-patinfo[,-2]
 
-ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = median),y=scale(bcat_exp_prob1)))+
+ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = median),y=scale(kaiso_exp_prob2)))+
 #ggplot(patinfo,aes(x=Outcome,y=scale(bcat_exp_prob1)))+
   geom_point(aes(color=Outcome),size=5)+
   geom_boxplot(alpha=0.2,lwd=1)+
@@ -1957,7 +1957,23 @@ ggplot(patinfo,aes(x=reorder(as.factor(cluster),patinfo$bcat_exp_prob1, FUN = me
         axis.text.y = element_text(angle=45, size=14,hjust=1))
 
 
+ggplot(patinfo,aes(x=Outcome,y=scale(tcf_exp_prob1)))+
+  #ggplot(patinfo,aes(x=Outcome,y=scale(bcat_exp_prob1)))+
+  geom_point(aes(color=Outcome),size=5)+
+  geom_boxplot(alpha=0.2,lwd=1)+
+  #  geom_hline(yintercept = median(scale(patinfo$bcat_exp_prob1)),color="red",lwd=2)+
+  #  geom_hline(yintercept = median(scale(patinfo$bcat_exp_prob1))-0.2,color="grey",lwd=2)+
+  #  geom_hline(yintercept = median(scale(patinfo$kaiso_exp_prob2))+0.25,color="grey",lwd=2)+
+  #  geom_hline(yintercept = 0,color="grey",lwd=1)+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size=14),
+        text = element_text(size=10),
+        axis.text.x = element_text(angle=45, size=14,hjust=1),
+        axis.text.y = element_text(angle=45, size=14,hjust=1))
+
 kruskal.test(as.factor(patinfo$cluster),patinfo$bcat_exp_prob1)
+kruskal.test(as.factor(patinfo$Outcome),patinfo$tcf_exp_prob1)
 
 my_comparisons <- list( c("1", "2"), c("1", "3"), c("2", "3"),c("1","4"),c("1","3") )
 ggboxplot(patinfo, x = "cluster", y = "tcf_exp_prob1",color="cluster", palette = "jco")+
@@ -2069,11 +2085,11 @@ pheno_2_pat<-pheno_2_pat %>%
 pheno_2_pat$Event<-as.integer(pheno_2_pat$Event)
 pheno_2_pat$Alive<-as.integer(pheno_2_pat$Alive)
 
-surv_C_fit_TALL <- survfit(Surv(EFS_yrs, Event) ~ newcluster, data=pheno_2_pat)
+surv_C_fit_TALL <- survfit(Surv(EFS_yrs, Event) ~ cluster, data=pheno_2_pat)
 ggsurvplot(surv_C_fit_TALL, data = pheno_2_pat,
            pval = TRUE,
            size=2,
-           palette = c("red", "gray60","gray87"),
+           palette = c("red", "gray60","gray87","gray23"),
            ggtheme = theme_bw()+theme(legend.position = "bottom",
                                       legend.text = element_text(size=14),
                                       text = element_text(size=20),
@@ -2095,7 +2111,7 @@ pheno_2_pat$cluster <- factor(pheno_2_pat$cluster, levels = c("3","2","4","1"))
 pheno_2_pat$Pheno_ETP<-ifelse(pheno_2_pat$Pheno=="ETP","ETP","nonETP")
 pheno_2_pat$Pheno_ETP <- factor(pheno_2_pat$Pheno_ETP, levels = c("nonETP","ETP"))
 
-fit.coxph<- coxph(Surv(EFS_yrs, Event) ~ newcluster+Gender+Age_hr+CNS_Status+Pheno_ETP,
+fit.coxph<- coxph(Surv(EFS_yrs, Event) ~ cluster+Gender+Age_hr+CNS_Status+Pheno_ETP,
                   data = pheno_2_pat[pheno_2_pat$CNS_Status!="No data" & !is.na(pheno_2_pat$Pheno),],
                   ties = 'exact')
 summary(fit.coxph)
@@ -2353,6 +2369,10 @@ deg_GSE14618surv$reg<-ifelse((deg_GSE14618surv$logFC<0),"up","down")
 deg_clust_GSE14618<-subset(deg_GSE14618surv,deg_GSE14618surv$P.Value<0.05)
 #write.table(deg_clust_GSE14618,'/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/supervised/bcat_DEGs_remindfail_allgenes.txt',quote = FALSE,sep="\t",row.names = FALSE)
 write.table(deg_clust_GSE14618,'/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/supervised/bcat_DEGs_remrelapse_allgenes.txt',quote = FALSE,sep="\t",row.names = FALSE)
+write.table(deg_clust_GSE14618,'/Volumes/grcmc/YGUILLEN/Projects_bioinfo_data_Yolanda/bcat/Patients_transcriptomes/microarrays/supervised/DEGs_microarrays_patients_Rem_rel_indfail.tsv',quote = FALSE,sep="\t",row.names = FALSE)
+
+
+
 
 genedeg<-deg_clust_GSE14618[,c(3,6,14,15)]
 genedeg<-genedeg[!duplicated(genedeg$ensembl_gene_id),]
